@@ -10,7 +10,7 @@ import ProductCard from '../components/ProductCard';
 
 interface ProductDetailsProps {
   products: Product[];
-  addToCart: (p: Product) => void;
+  addToCart: (p: Product, q?: number) => void;
   reviews: Review[];
   addReview: (r: Omit<Review, 'id' | 'createdAt'>) => void;
   currentUser: User | null;
@@ -66,9 +66,9 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
   const isLowStock = product.stockStatus === StockStatus.LOW_STOCK;
 
   const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i++) {
-      addToCart(product);
-    }
+    addToCart(product, quantity);
+    // Reset quantity after adding for better UX
+    setQuantity(1);
   };
 
   const handleSubmitReview = (e: React.FormEvent) => {
@@ -163,15 +163,39 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
               <p className="text-slate-600 dark:text-slate-400 font-medium leading-relaxed mb-10 text-lg">{product.description}</p>
             </div>
 
+            {/* Quantity Selector & Action Area */}
             <div className="space-y-8 bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 mb-10">
               <div className="flex flex-col sm:flex-row gap-6 items-center">
-                <div className="flex items-center gap-4 bg-white dark:bg-slate-950 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                  <button onClick={() => setQuantity(q => Math.max(1, q - 1))} disabled={isSoldOut} className="p-3 hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors"><Minus className="w-4 h-4" /></button>
-                  <span className="w-10 text-center font-black text-slate-900 dark:text-slate-100">{quantity}</span>
-                  <button onClick={() => setQuantity(q => q + 1)} disabled={isSoldOut} className="p-3 hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors"><Plus className="w-4 h-4" /></button>
+                {/* Visual Quantity Selector Component */}
+                <div className="flex items-center gap-1 bg-white dark:bg-slate-950 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all focus-within:ring-2 focus-within:ring-emerald-700/10">
+                  <button 
+                    onClick={() => setQuantity(q => Math.max(1, q - 1))} 
+                    disabled={isSoldOut} 
+                    className="p-4 text-slate-500 hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed group"
+                    title="Decrease quantity"
+                  >
+                    <Minus className="w-4 h-4 stroke-[3px] group-active:scale-90 transition-transform" />
+                  </button>
+                  <span className="w-12 text-center font-black text-slate-900 dark:text-white text-base tabular-nums">
+                    {quantity}
+                  </span>
+                  <button 
+                    onClick={() => setQuantity(q => q + 1)} 
+                    disabled={isSoldOut} 
+                    className="p-4 text-slate-500 hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed group"
+                    title="Increase quantity"
+                  >
+                    <Plus className="w-4 h-4 stroke-[3px] group-active:scale-90 transition-transform" />
+                  </button>
                 </div>
-                <button onClick={handleAddToCart} disabled={isSoldOut} className={`flex-grow flex items-center justify-center gap-4 py-5 px-10 rounded-2xl font-black text-xs tracking-[0.2em] uppercase transition-all shadow-xl active:scale-95 ${isSoldOut ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-emerald-800 text-white hover:bg-emerald-900'}`}>
-                  <ShoppingBag className="w-5 h-5" /> {isSoldOut ? 'Currently Sold Out' : 'Reserve for Batch'}
+
+                <button 
+                  onClick={handleAddToCart} 
+                  disabled={isSoldOut} 
+                  className={`flex-grow flex items-center justify-center gap-4 py-5 px-10 rounded-2xl font-black text-xs tracking-[0.2em] uppercase transition-all shadow-xl active:scale-95 ${isSoldOut ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-emerald-800 text-white hover:bg-emerald-900'}`}
+                >
+                  <ShoppingBag className="w-5 h-5" /> 
+                  {isSoldOut ? 'Currently Sold Out' : 'Reserve for Batch'}
                 </button>
               </div>
               <div className="flex flex-col sm:flex-row gap-6 justify-between pt-6 border-t border-slate-200/50 dark:border-slate-800">

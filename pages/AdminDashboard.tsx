@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Order, OrderStatus, UserRole, User as UserType, Product, StockStatus } from '../types';
 import { 
   X, ShieldCheck, ChevronRight, MessageCircle, 
-  LayoutDashboard, Package, BarChart3, Settings
+  LayoutDashboard, Package, BarChart3, Settings, Save, AlertTriangle, DollarSign
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -18,6 +18,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
   // 1. Hooks (Must always run)
   const [activeTab, setActiveTab] = useState<'orders' | 'inventory' | 'analytics'>('orders');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [adminNote, setAdminNote] = useState('');
 
   const selectedOrder = useMemo(() => orders.find(o => o.id === selectedOrderId), [orders, selectedOrderId]);
@@ -36,16 +37,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
     }
   };
 
-  const toggleStock = (productId: string) => {
-    setProducts(products.map(p => {
-      if (p.id === productId) {
-        return {
-          ...p,
-          stockStatus: p.stockStatus === StockStatus.SOLD_OUT ? StockStatus.IN_STOCK : StockStatus.SOLD_OUT
-        };
-      }
-      return p;
-    }));
+  const saveProductEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    
+    setProducts(products.map(p => p.id === editingProduct.id ? editingProduct : p));
+    setEditingProduct(null);
+  };
+
+  const handlePriceChange = (value: string) => {
+    if (!editingProduct) return;
+    // Allow empty string for clearing, but parse to float for the state
+    const parsed = parseFloat(value);
+    setEditingProduct({
+      ...editingProduct,
+      price: isNaN(parsed) ? 0 : parsed
+    });
   };
 
   return (
@@ -127,12 +134,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
               </div>
               <div className="flex-grow">
                 <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1">{product.name}</h4>
-                <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-widest mb-3 md:mb-4">{product.category}</p>
+                <div className="flex items-center justify-between mb-3">
+                   <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-widest">{product.category}</p>
+                   <p className="text-xs font-black text-slate-900 dark:text-white">${product.price.toFixed(2)}</p>
+                </div>
                 <div className="flex items-center justify-between">
                   <span className={`text-[8px] md:text-[9px] font-black uppercase tracking-widest px-2 md:px-3 py-1 rounded-full border ${product.stockStatus === StockStatus.SOLD_OUT ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
                     {product.stockStatus === StockStatus.SOLD_OUT ? 'Out of Batch' : 'Active Batch'}
                   </span>
-                  <button onClick={() => toggleStock(product.id)} className="p-2 text-slate-400 hover:text-amber-600 transition-colors">
+                  <button onClick={() => setEditingProduct(product)} className="p-2 text-slate-400 hover:text-amber-600 transition-colors">
                     <Settings className="w-4 h-4" />
                   </button>
                 </div>
@@ -150,6 +160,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
         </div>
       )}
 
+      {/* Order Review Modal */}
       {selectedOrderId && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setSelectedOrderId(null)}></div>
@@ -205,6 +216,92 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                 </div>
              )}
           </div>
+        </div>
+      )}
+
+      {/* Product Edit Modal */}
+      {editingProduct && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setEditingProduct(null)}></div>
+          <form onSubmit={saveProductEdit} className="relative bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-6 md:p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/50">
+               <div className="flex items-center gap-3">
+                 <Package className="w-5 h-5 text-amber-600" />
+                 <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Edit Delicacy</h3>
+               </div>
+               <button type="button" onClick={() => setEditingProduct(null)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><X /></button>
+            </div>
+
+            <div className="p-8 md:p-10 space-y-8">
+               <div className="flex gap-6 items-center">
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 shrink-0 shadow-sm">
+                    <img src={editingProduct.image} className="w-full h-full object-cover" alt={editingProduct.name} />
+                  </div>
+                  <div className="flex-grow space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dish Identity</label>
+                    <input 
+                      type="text" 
+                      value={editingProduct.name} 
+                      onChange={e => setEditingProduct({...editingProduct, name: e.target.value})}
+                      className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500" 
+                      required
+                    />
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <DollarSign className="w-3 h-3" /> Boutique Price
+                    </label>
+                    <div className="relative group">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-sm">$</span>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        min="0"
+                        value={editingProduct.price} 
+                        onChange={e => handlePriceChange(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full pl-8 pr-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <AlertTriangle className="w-3 h-3" /> Batch Availability
+                    </label>
+                    <select 
+                      value={editingProduct.stockStatus} 
+                      onChange={e => setEditingProduct({...editingProduct, stockStatus: e.target.value as StockStatus})}
+                      className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500 appearance-none cursor-pointer"
+                    >
+                      <option value={StockStatus.IN_STOCK}>In Stock (Live)</option>
+                      <option value={StockStatus.LOW_STOCK}>Low Stock (Alert)</option>
+                      <option value={StockStatus.SOLD_OUT}>Sold Out (Locked)</option>
+                    </select>
+                  </div>
+               </div>
+            </div>
+
+            <div className="p-8 md:p-10 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
+              <button 
+                type="submit" 
+                className="flex-grow py-4 md:py-5 bg-slate-900 dark:bg-amber-600 text-white rounded-xl md:rounded-2xl font-black text-[10px] md:text-[11px] uppercase tracking-widest hover:bg-black transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95"
+              >
+                <Save className="w-4 h-4" /> Authorize Update
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setEditingProduct(null)} 
+                className="py-4 md:py-5 px-8 md:px-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-400 rounded-xl md:rounded-2xl font-black text-[10px] md:text-[11px] uppercase tracking-widest hover:text-slate-900 transition-all"
+              >
+                Discard
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
