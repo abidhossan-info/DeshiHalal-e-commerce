@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
 import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat } from 'lucide-react';
 import { Product, Order, OrderStatus, UserRole, User as UserType, CartItem, Notification, Review } from './types';
-import { INITIAL_PRODUCTS, MOCK_ADMIN, MOCK_USER } from './constants';
+import { INITIAL_PRODUCTS, MOCK_ADMIN, MOCK_USER, MOCK_GUEST } from './constants';
 
 // --- Pages ---
 import Home from './pages/Home';
@@ -130,20 +130,42 @@ const App: React.FC = () => {
     }));
   };
 
-  const requestOrder = () => {
-    if (cart.length === 0 || !currentUser) {
-      if (!currentUser) navigate('/login');
+  const requestOrder = (asGuest: boolean = false, guestData?: { name: string, email: string, phone: string, address: string }) => {
+    if (cart.length === 0) return;
+
+    let user = currentUser;
+    if (asGuest && !currentUser && guestData) {
+      const guestUser: UserType = {
+        id: `GUEST-${Date.now()}`,
+        name: guestData.name,
+        email: guestData.email,
+        phone: guestData.phone,
+        role: UserRole.GUEST,
+        avatar: undefined
+      };
+      user = guestUser;
+      setCurrentUser(guestUser);
+    } else if (asGuest && !currentUser) {
+      user = MOCK_GUEST;
+      setCurrentUser(MOCK_GUEST);
+    }
+
+    if (!user) {
+      navigate('/login');
       return;
     }
 
     const orderId = `DH-${Math.floor(Math.random() * 900000) + 100000}`;
     const newOrder: Order = {
       id: orderId,
-      userId: currentUser.id,
-      customerName: currentUser.name,
+      userId: user.id,
+      customerName: user.name,
+      customerEmail: asGuest ? guestData?.email : user.email,
+      customerPhone: asGuest ? guestData?.phone : user.phone,
       items: [...cart],
       total: cart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
       status: OrderStatus.PENDING,
+      address: guestData?.address,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -154,7 +176,7 @@ const App: React.FC = () => {
     addNotification(
       MOCK_ADMIN.id, 
       'New Batch Request', 
-      `Patron ${currentUser.name} requested order ${orderId}. Verify ingredients.`, 
+      `Patron ${user.name} (${asGuest ? 'Guest' : 'Member'}) requested order ${orderId}. Verify ingredients.`, 
       'ORDER_REQUEST'
     );
 
@@ -168,16 +190,19 @@ const App: React.FC = () => {
 
       const updatedOrders = prevOrders.map(order => 
         order.id === orderId 
-          ? { ...order, status, adminNote: note, updatedAt: new Date().toISOString() } 
+          ? { ...order, status, adminNote: note, updatedAt: new Date().toISOString(), paymentLinkSent: status === OrderStatus.APPROVED && order.userId.startsWith('GUEST') ? true : order.paymentLinkSent } 
           : order
       );
 
       const noteText = note ? ` Head Chef Note: ${note}` : '';
       if (status === OrderStatus.APPROVED) {
+        const isGuest = targetOrder.userId.startsWith('GUEST');
+        const guestMsg = isGuest ? ` A payment link has been dispatched to ${targetOrder.customerEmail}.` : '';
+        
         addNotification(
           targetOrder.userId, 
           'Verified by Head Chef', 
-          `Your batch ${orderId} is verified. Payment is now unlocked.${noteText}`, 
+          `Your batch ${orderId} is verified. Payment is now unlocked.${noteText}${guestMsg}`, 
           'ORDER_UPDATE'
         );
       } else if (status === OrderStatus.REJECTED) {
@@ -268,7 +293,7 @@ const App: React.FC = () => {
           <Route path="/" element={<Home products={products} addToCart={addToCart} />} />
           <Route path="/shop" element={<Shop products={products} addToCart={addToCart} />} />
           <Route path="/monday-menu" element={<MondayMenu products={products.filter(p => p.isMondaySpecial)} addToCart={addToCart} />} />
-          <Route path="/cart" element={<CartPage cart={cart} removeFromCart={removeFromCart} updateQuantity={updateCartQuantity} requestOrder={requestOrder} clearCart={clearCart} />} />
+          <Route path="/cart" element={<CartPage cart={cart} removeFromCart={removeFromCart} updateQuantity={updateCartQuantity} requestOrder={requestOrder} clearCart={clearCart} currentUser={currentUser} />} />
           <Route path="/account" element={<Account currentUser={currentUser} orders={orders.filter(o => o.userId === currentUser?.id)} notifications={notifications.filter(n => n.userId === currentUser?.id)} markRead={markNotificationRead} updateStatus={updateOrderStatus} setCurrentUser={setCurrentUser} updateCurrentUser={updateCurrentUser} />} />
           <Route path="/admin" element={<AdminDashboard orders={orders} updateStatus={updateOrderStatus} currentUser={currentUser} products={products} setProducts={setProducts} />} />
           <Route path="/login" element={<LoginPage setCurrentUser={setCurrentUser} />} />

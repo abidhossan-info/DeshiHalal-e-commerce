@@ -49,10 +49,14 @@ export interface Order {
   id: string;
   userId: string;
   customerName: string;
+  customerEmail?: string;
+  customerPhone?: string;
   items: CartItem[];
   total: number;
   status: OrderStatus;
   adminNote?: string;
+  address?: string;
+  paymentLinkSent?: boolean;
   createdAt: string;
   updatedAt: string;
 }

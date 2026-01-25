@@ -6,7 +6,7 @@ import {
   Clock, CheckCircle, CreditCard, ShoppingBag, Bell, LogOut, 
   Loader2, Lock, ShieldCheck, MessageCircle, User as UserIcon, Settings,
   ChevronRight, MapPin, Phone, AlertCircle, Sparkles, Edit2, Save, X, Camera, Mail, ClipboardList, XCircle,
-  Package, ChefHat, UtensilsCrossed, BarChart3, LayoutDashboard
+  Package, ChefHat, UtensilsCrossed, BarChart3, LayoutDashboard, Send
 } from 'lucide-react';
 
 interface AccountProps {
@@ -45,6 +45,7 @@ const Account: React.FC<AccountProps> = ({
   const navigate = useNavigate();
 
   const isHeadChef = currentUser?.role === UserRole.ADMIN;
+  const isGuest = currentUser?.role === UserRole.GUEST;
 
   const sortedOrders = useMemo(() => {
     return [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -107,27 +108,29 @@ const Account: React.FC<AccountProps> = ({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 md:gap-8 mb-10 md:mb-16">
         <div className="flex items-center gap-4 md:gap-6">
            <div className="relative group">
-              <div className={`w-16 h-16 md:w-24 md:h-24 rounded-[1.5rem] md:rounded-[2.5rem] flex items-center justify-center text-2xl md:text-4xl font-black border-4 border-white dark:border-slate-800 shadow-2xl overflow-hidden ${isHeadChef ? 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-400' : 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-400'}`}>
+              <div className={`w-16 h-16 md:w-24 md:h-24 rounded-[1.5rem] md:rounded-[2.5rem] flex items-center justify-center text-2xl md:text-4xl font-black border-4 border-white dark:border-slate-800 shadow-2xl overflow-hidden ${isHeadChef ? 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-400' : isGuest ? 'bg-slate-100 dark:bg-slate-900 text-slate-500' : 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-400'}`}>
                 {currentUser.avatar ? (
                   <img src={currentUser.avatar} className="w-full h-full object-cover" alt={currentUser.name} />
                 ) : (
-                  isHeadChef ? <ChefHat className="w-8 h-8 md:w-12 md:h-12" /> : currentUser.name.charAt(0)
+                  isHeadChef ? <ChefHat className="w-8 h-8 md:w-12 md:h-12" /> : isGuest ? <UserIcon className="w-8 h-8 md:w-12 md:h-12" /> : currentUser.name.charAt(0)
                 )}
               </div>
-              <button 
-                onClick={() => { setActiveTab('profile'); setIsEditing(true); }}
-                className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-lg text-slate-400 hover:text-emerald-600 transition-colors"
-              >
-                <Camera className="w-4 h-4" />
-              </button>
+              {!isGuest && (
+                <button 
+                  onClick={() => { setActiveTab('profile'); setIsEditing(true); }}
+                  className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-lg text-slate-400 hover:text-emerald-600 transition-colors"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+              )}
            </div>
            <div>
               <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
                 {isHeadChef ? 'Master Head Chef' : currentUser.name}
               </h1>
-              <p className={`text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2 ${isHeadChef ? 'text-amber-600' : 'text-emerald-800 dark:text-emerald-500'}`}>
-                {isHeadChef ? <ChefHat className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
-                {isHeadChef ? 'Boutique Kitchen Authority' : 'Boutique Verified Patron'}
+              <p className={`text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2 ${isHeadChef ? 'text-amber-600' : isGuest ? 'text-slate-500' : 'text-emerald-800 dark:text-emerald-500'}`}>
+                {isHeadChef ? <ChefHat className="w-3 h-3" /> : isGuest ? <Send className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
+                {isHeadChef ? 'Boutique Kitchen Authority' : isGuest ? 'One-Time Guest Patron' : 'Boutique Verified Patron'}
               </p>
            </div>
         </div>
@@ -138,7 +141,7 @@ const Account: React.FC<AccountProps> = ({
             </Link>
           )}
           <button onClick={handleSignOut} className="flex items-center justify-center gap-2 text-[10px] font-black text-rose-600 uppercase tracking-widest bg-rose-50 dark:bg-rose-950/30 px-6 py-3 rounded-2xl transition-all hover:bg-rose-100 active:scale-95">
-            <LogOut className="w-4 h-4" /> Terminate Session
+            <LogOut className="w-4 h-4" /> {isGuest ? 'End Guest Session' : 'Terminate Session'}
           </button>
         </div>
       </div>
@@ -168,28 +171,30 @@ const Account: React.FC<AccountProps> = ({
         <div className="mb-10 bg-emerald-800 text-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700 ring-4 ring-emerald-500/20 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
           <div className="flex items-center gap-5 relative z-10">
             <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center shrink-0 border border-white/20 animate-pulse">
-              <Sparkles className="w-7 h-7 text-emerald-300" />
+              {isGuest ? <Mail className="w-7 h-7 text-amber-300" /> : <Sparkles className="w-7 h-7 text-emerald-300" />}
             </div>
             <div>
-              <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight">Culinary Batch Ready!</h3>
-              <p className="text-[11px] text-emerald-100 font-bold uppercase tracking-widest opacity-80">Our Chef has verified ingredients. Please complete payment to start cooking.</p>
+              <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight">{isGuest ? 'Payment Link Dispatched' : 'Culinary Batch Ready!'}</h3>
+              <p className="text-[11px] text-emerald-100 font-bold uppercase tracking-widest opacity-80">
+                {isGuest ? `The Head Chef has sent a secure link to ${currentUser.email}.` : 'Our Chef has verified ingredients. Please complete payment to start cooking.'}
+              </p>
             </div>
           </div>
           <button 
             onClick={() => setActiveTab('orders')}
             className="w-full md:w-auto px-8 py-4 bg-white text-emerald-900 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-emerald-50 transition-all active:scale-95"
           >
-            View Approved Batches
+            {isGuest ? 'Access Link below' : 'View Approved Batches'}
           </button>
         </div>
       )}
 
       <div className="flex gap-2 md:gap-4 mb-10 border-b border-slate-100 dark:border-slate-800 pb-4 overflow-x-auto no-scrollbar">
-        <button onClick={() => setActiveTab('orders')} className={`text-[10px] font-black uppercase tracking-widest px-6 md:px-8 py-3 rounded-xl md:rounded-2xl transition-all whitespace-nowrap ${activeTab === 'orders' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900'}`}>{isHeadChef ? 'Recent Operations' : 'My Requests'}</button>
+        <button onClick={() => setActiveTab('orders')} className={`text-[10px] font-black uppercase tracking-widest px-6 md:px-8 py-3 rounded-xl md:rounded-2xl transition-all whitespace-nowrap ${activeTab === 'orders' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900'}`}>{isHeadChef ? 'Recent Operations' : isGuest ? 'Guest Requests' : 'My Requests'}</button>
         <button onClick={() => setActiveTab('alerts')} className={`text-[10px] font-black uppercase tracking-widest px-6 md:px-8 py-3 rounded-xl md:rounded-2xl transition-all whitespace-nowrap ${activeTab === 'alerts' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900'}`}>
           Inbox {unreadCount > 0 && <span className="ml-2 bg-amber-500 text-white text-[9px] px-2 py-0.5 rounded-full animate-pulse">{unreadCount}</span>}
         </button>
-        <button onClick={() => { setActiveTab('profile'); setIsEditing(false); }} className={`text-[10px] font-black uppercase tracking-widest px-6 md:px-8 py-3 rounded-xl md:rounded-2xl transition-all whitespace-nowrap ${activeTab === 'profile' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900'}`}>Profile & Settings</button>
+        {!isGuest && <button onClick={() => { setActiveTab('profile'); setIsEditing(false); }} className={`text-[10px] font-black uppercase tracking-widest px-6 md:px-8 py-3 rounded-xl md:rounded-2xl transition-all whitespace-nowrap ${activeTab === 'profile' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900'}`}>Profile & Settings</button>}
       </div>
 
       {activeTab === 'orders' && (
@@ -213,9 +218,9 @@ const Account: React.FC<AccountProps> = ({
                       <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Verification</span>
                     </div>
                   ) : order.status === OrderStatus.APPROVED ? (
-                    <div className="flex items-center gap-3 px-5 md:px-6 py-2 md:py-2.5 bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-400 rounded-2xl border border-emerald-200 dark:border-emerald-800 animate-in zoom-in-95">
-                      <CheckCircle className="w-5 h-5" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Chef Verified - Proceed to Pay</span>
+                    <div className={`flex items-center gap-3 px-5 md:px-6 py-2 md:py-2.5 rounded-2xl border animate-in zoom-in-95 ${order.paymentLinkSent ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'}`}>
+                      {order.paymentLinkSent ? <Mail className="w-4 h-4" /> : <CheckCircle className="w-5 h-5" />}
+                      <span className="text-[10px] font-black uppercase tracking-widest">{order.paymentLinkSent ? 'Payment Link Sent to Mail' : 'Chef Verified - Proceed to Pay'}</span>
                     </div>
                   ) : order.status === OrderStatus.PAID ? (
                     <div className="flex items-center gap-3 px-5 md:px-6 py-2 md:py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl border border-slate-800 dark:border-slate-100 shadow-lg">
@@ -265,10 +270,10 @@ const Account: React.FC<AccountProps> = ({
                 {order.status === OrderStatus.APPROVED && !isHeadChef ? (
                   <button 
                     onClick={() => setProcessingOrderId(order.id)} 
-                    className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 bg-emerald-800 text-white rounded-xl md:rounded-2xl text-[11px] md:text-[12px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] hover:bg-emerald-900 transition-all shadow-2xl animate-pulse ring-4 ring-emerald-500/30 active:scale-95 flex items-center justify-center"
+                    className={`w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 text-white rounded-xl md:rounded-2xl text-[11px] md:text-[12px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] transition-all shadow-2xl animate-pulse ring-4 active:scale-95 flex items-center justify-center ${order.paymentLinkSent ? 'bg-amber-600 hover:bg-amber-700 ring-amber-500/30' : 'bg-emerald-800 hover:bg-emerald-900 ring-emerald-500/30'}`}
                   >
-                    <CreditCard className="w-5 h-5 mr-3" /> 
-                    Authorize Secure Payment
+                    {order.paymentLinkSent ? <Mail className="w-5 h-5 mr-3" /> : <CreditCard className="w-5 h-5 mr-3" />}
+                    {order.paymentLinkSent ? 'Use Dispatched Payment Link' : 'Authorize Secure Payment'}
                   </button>
                 ) : order.status === OrderStatus.PAID ? (
                   <div className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 rounded-xl md:rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 dark:border-emerald-900 flex items-center justify-center gap-3">
@@ -317,7 +322,7 @@ const Account: React.FC<AccountProps> = ({
         </div>
       )}
 
-      {activeTab === 'profile' && (
+      {activeTab === 'profile' && !isGuest && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
            <div className="bg-white dark:bg-slate-900 rounded-[2rem] md:rounded-[3.5rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
               <div className="flex flex-col md:flex-row border-b border-slate-50 dark:border-slate-800">

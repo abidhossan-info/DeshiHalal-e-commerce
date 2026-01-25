@@ -4,7 +4,7 @@ import { Order, OrderStatus, UserRole, User as UserType, Product, StockStatus } 
 import { 
   X, ShieldCheck, ChevronRight, MessageCircle, 
   LayoutDashboard, Package, BarChart3, Settings, Save, AlertTriangle, 
-  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat
+  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat, Phone, Mail, MapPin, Send, Loader2
 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 
@@ -23,6 +23,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [adminNote, setAdminNote] = useState('');
+  const [isProcessingApproval, setIsProcessingApproval] = useState(false);
   
   // Dynamic Category state
   const [isCustomCategory, setIsCustomCategory] = useState(false);
@@ -54,7 +55,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
 
   // Handlers
   const handleAction = (status: OrderStatus) => {
-    if (selectedOrderId) {
+    if (!selectedOrderId || !selectedOrder) return;
+    
+    if (status === OrderStatus.APPROVED && selectedOrder.userId.startsWith('GUEST')) {
+      setIsProcessingApproval(true);
+      // Simulate sending payment link
+      setTimeout(() => {
+        updateStatus(selectedOrderId, status, adminNote);
+        setIsProcessingApproval(false);
+        setSelectedOrderId(null);
+        setAdminNote('');
+      }, 1500);
+    } else {
       updateStatus(selectedOrderId, status, adminNote);
       setSelectedOrderId(null);
       setAdminNote('');
@@ -127,6 +139,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
       setNewProduct({ ...newProduct, category: val });
     }
   };
+
+  const isGuestOrder = selectedOrder?.userId.startsWith('GUEST');
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
@@ -251,10 +265,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
         </div>
       )}
 
-      {/* Robust Order Review Modal with Decision Notes */}
+      {/* Robust Order Review Modal with Decision Notes and Guest Info */}
       {selectedOrderId && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setSelectedOrderId(null)}></div>
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => !isProcessingApproval && setSelectedOrderId(null)}></div>
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] flex flex-col rounded-[2.5rem] md:rounded-[3.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
              <div className="p-8 md:p-10 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/50 shrink-0">
                 <div className="flex items-center gap-4">
@@ -266,20 +280,53 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Reference: {selectedOrder.id}</p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedOrderId(null)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors shrink-0"><X /></button>
+                <button onClick={() => !isProcessingApproval && setSelectedOrderId(null)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors shrink-0"><X /></button>
              </div>
              
              <div className="p-8 md:p-12 space-y-8 md:space-y-10 overflow-y-auto flex-grow no-scrollbar">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                   <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Patron Identity</p>
-                      <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 font-black text-sm text-slate-900 dark:text-white">{selectedOrder.customerName}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div className="space-y-4">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Patron Credentials</p>
+                      <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+                         <div className="flex items-center gap-3">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span className="font-black text-sm text-slate-900 dark:text-white uppercase leading-none">{selectedOrder.customerName}</span>
+                         </div>
+                         {selectedOrder.customerEmail && (
+                            <div className="flex items-center gap-3 text-slate-500">
+                               <Mail className="w-3.5 h-3.5" />
+                               <span className="text-xs font-bold lowercase">{selectedOrder.customerEmail}</span>
+                            </div>
+                         )}
+                         {selectedOrder.customerPhone && (
+                            <div className="flex items-center gap-3 text-slate-500">
+                               <Phone className="w-3.5 h-3.5" />
+                               <span className="text-xs font-bold tabular-nums">{selectedOrder.customerPhone}</span>
+                            </div>
+                         )}
+                      </div>
                    </div>
-                   <div>
+                   <div className="space-y-4">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Batch Value</p>
-                      <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 font-black text-xl text-emerald-800 dark:text-emerald-500">${selectedOrder.total.toFixed(2)}</div>
+                      <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                         <span className="text-4xl font-black text-emerald-800 dark:text-emerald-500 tabular-nums">${selectedOrder.total.toFixed(2)}</span>
+                         <div className="text-right">
+                            <p className="text-[8px] font-black uppercase text-slate-400">Inventory items</p>
+                            <p className="text-xs font-black text-slate-900 dark:text-white">{selectedOrder.items.length}</p>
+                         </div>
+                      </div>
                    </div>
                 </div>
+
+                {selectedOrder.address && (
+                   <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Delivery Destination</p>
+                      <div className="bg-amber-50/30 dark:bg-amber-950/20 p-6 rounded-2xl border border-amber-100/50 dark:border-amber-900/50 flex gap-4">
+                         <MapPin className="w-5 h-5 text-amber-600 shrink-0" />
+                         <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed italic">"{selectedOrder.address}"</p>
+                      </div>
+                   </div>
+                )}
 
                 <div>
                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Batch Composition</p>
@@ -315,15 +362,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                 <div className="p-8 md:p-12 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 shrink-0">
                    <button 
                      onClick={() => handleAction(OrderStatus.REJECTED)} 
-                     className="order-2 sm:order-1 py-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-rose-600 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-rose-50 transition-all active:scale-95"
+                     disabled={isProcessingApproval}
+                     className="order-2 sm:order-1 py-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-rose-600 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-rose-50 transition-all active:scale-95 disabled:opacity-50"
                    >
                      Deny Batch
                    </button>
                    <button 
                      onClick={() => handleAction(OrderStatus.APPROVED)} 
-                     className="order-1 sm:order-2 py-5 bg-emerald-800 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-emerald-900 transition-all shadow-xl active:scale-95 shadow-emerald-900/20"
+                     disabled={isProcessingApproval}
+                     className={`order-1 sm:order-2 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl active:scale-95 shadow-emerald-900/20 flex items-center justify-center gap-3 ${isGuestOrder ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-800 hover:bg-emerald-900'} text-white disabled:opacity-50`}
                    >
-                     Verify & Approve
+                     {isProcessingApproval ? <Loader2 className="w-4 h-4 animate-spin" /> : isGuestOrder ? <Send className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                     {isProcessingApproval ? 'Dispatching Link...' : isGuestOrder ? 'Verify & Send Payment Link' : 'Verify & Approve'}
                    </button>
                 </div>
              )}

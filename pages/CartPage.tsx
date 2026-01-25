@@ -1,20 +1,35 @@
 
 import React, { useState } from 'react';
-import { ShoppingBag, ArrowRight, Minus, Plus, Trash2, ClipboardList, ShieldCheck, Clock, CheckCircle2, AlertTriangle, X } from 'lucide-react';
-import { CartItem } from '../types';
+import { ShoppingBag, ArrowRight, Minus, Plus, Trash2, ClipboardList, ShieldCheck, Clock, CheckCircle2, AlertTriangle, X, User, MapPin, Mail, Phone, Fingerprint } from 'lucide-react';
+import { CartItem, User as UserType } from '../types';
 import { Link } from 'react-router-dom';
 
 interface CartPageProps {
   cart: CartItem[];
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, d: number) => void;
-  requestOrder: () => void;
+  requestOrder: (asGuest?: boolean, guestData?: any) => void;
   clearCart: () => void;
+  currentUser: UserType | null;
 }
 
-const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantity, requestOrder, clearCart }) => {
+const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantity, requestOrder, clearCart, currentUser }) => {
   const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [guestForm, setGuestForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    address: ''
+  });
+
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
+  const handleGuestSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    requestOrder(true, guestForm);
+    setShowGuestModal(false);
+  };
 
   if (cart.length === 0) {
     return (
@@ -114,7 +129,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
               </div>
             </div>
 
-            <div className="bg-white/5 rounded-2xl p-6 mb-10 border border-white/10 space-y-4">
+            <div className="bg-white/5 rounded-2xl p-6 mb-8 border border-white/10 space-y-4">
               <div className="flex gap-4 items-start">
                 <div className="p-2 bg-emerald-500/10 rounded-lg shrink-0">
                   <ClipboardList className="w-5 h-5 text-emerald-400" />
@@ -130,19 +145,126 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
               </div>
             </div>
 
-            <button 
-              onClick={requestOrder}
-              className="w-full py-5 bg-emerald-700 text-white rounded-2xl font-black text-xs tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-950/40 flex items-center justify-center gap-3 group uppercase active:scale-95"
-            >
-              Request Order Approval
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
+            <div className="space-y-4">
+              <button 
+                onClick={() => requestOrder(false)}
+                className="w-full py-5 bg-emerald-700 text-white rounded-2xl font-black text-xs tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-950/40 flex items-center justify-center gap-3 group uppercase active:scale-95"
+              >
+                {currentUser ? 'Request Order Approval' : 'Sign In & Request'}
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+              
+              {!currentUser && (
+                <button 
+                  onClick={() => setShowGuestModal(true)}
+                  className="w-full py-5 bg-transparent border-2 border-slate-800 text-slate-300 rounded-2xl font-black text-xs tracking-[0.2em] hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-3 group uppercase active:scale-95"
+                >
+                  <User className="w-5 h-5" />
+                  Guest Request Approval
+                </button>
+              )}
+            </div>
+
             <p className="text-[8px] text-center text-slate-500 font-black uppercase tracking-[0.2em] mt-6 leading-relaxed">
               No payment required at this step. <br />Approval typically within 30-60 mins.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Guest Request Form Modal */}
+      {showGuestModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-300" 
+            onClick={() => setShowGuestModal(false)}
+          ></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] p-8 md:p-12 shadow-[0_35px_60px_-15px_rgba(0,0,0,0.6)] border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-10 shrink-0">
+               <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-400 flex items-center justify-center border border-emerald-200 dark:border-emerald-800/50">
+                    <Fingerprint className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-950 dark:text-white uppercase tracking-tight leading-none">Guest Protocol</h3>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">One-time boutique access</p>
+                  </div>
+               </div>
+               <button onClick={() => setShowGuestModal(false)} className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-600 rounded-2xl transition-colors"><X className="w-6 h-6" /></button>
+            </div>
+
+            <form onSubmit={handleGuestSubmit} className="space-y-6 overflow-y-auto no-scrollbar pr-1">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Full Name</label>
+                <div className="relative group">
+                  <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
+                  <input 
+                    type="text" 
+                    value={guestForm.name}
+                    onChange={e => setGuestForm({...guestForm, name: e.target.value})}
+                    placeholder="Enter your full name"
+                    className="w-full pl-14 pr-6 py-4.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-emerald-700/10 outline-none transition-all"
+                    required 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Phone Number</label>
+                <div className="relative group">
+                  <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
+                  <input 
+                    type="tel" 
+                    value={guestForm.phone}
+                    onChange={e => setGuestForm({...guestForm, phone: e.target.value})}
+                    placeholder="+880 1XXX-XXXXXX"
+                    className="w-full pl-14 pr-6 py-4.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-emerald-700/10 outline-none transition-all"
+                    required 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Secure Email</label>
+                <div className="relative group">
+                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
+                  <input 
+                    type="email" 
+                    value={guestForm.email}
+                    onChange={e => setGuestForm({...guestForm, email: e.target.value})}
+                    placeholder="yourname@example.com"
+                    className="w-full pl-14 pr-6 py-4.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-emerald-700/10 outline-none transition-all"
+                    required 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Delivery Address</label>
+                <div className="relative group">
+                  <MapPin className="absolute left-5 top-10 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
+                  <textarea 
+                    value={guestForm.address}
+                    onChange={e => setGuestForm({...guestForm, address: e.target.value})}
+                    placeholder="Provide detailed boutique delivery instructions..."
+                    className="w-full pl-14 pr-6 py-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-4 focus:ring-emerald-700/10 outline-none h-28 resize-none transition-all"
+                    required 
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 shrink-0">
+                <button 
+                  type="submit"
+                  className="w-full py-6 bg-emerald-800 text-white rounded-[1.5rem] font-black text-xs tracking-[0.3em] uppercase transition-all shadow-2xl shadow-emerald-900/40 flex items-center justify-center gap-4 active:scale-95"
+                >
+                  <ArrowRight className="w-5 h-5" /> Submit Batch Request
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Dialog for Clear Cart */}
       {showConfirmClear && (
