@@ -1,10 +1,12 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Order, OrderStatus, UserRole, User as UserType, Product, StockStatus } from '../types';
 import { 
   X, ShieldCheck, ChevronRight, MessageCircle, 
-  LayoutDashboard, Package, BarChart3, Settings, Save, AlertTriangle, DollarSign
+  LayoutDashboard, Package, BarChart3, Settings, Save, AlertTriangle, 
+  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat
 } from 'lucide-react';
+import ProductCard from '../components/ProductCard';
 
 interface AdminDashboardProps {
   orders: Order[];
@@ -15,20 +17,42 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, currentUser, products, setProducts }) => {
-  // 1. Hooks (Must always run)
-  const [activeTab, setActiveTab] = useState<'orders' | 'inventory' | 'analytics'>('orders');
+  // 1. State Management - Using terminology requested by user
+  const [activeTab, setActiveTab] = useState<'batches' | 'inventory' | 'metrics'>('batches');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [adminNote, setAdminNote] = useState('');
+  
+  // Dynamic Category state
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Form initialization constants
+  const INITIAL_NEW_PRODUCT: Omit<Product, 'id'> = {
+    name: '',
+    description: '',
+    price: 0,
+    image: '',
+    category: 'NON VEG',
+    isMondaySpecial: false,
+    isNew: true,
+    stockStatus: StockStatus.IN_STOCK
+  };
+
+  const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>(INITIAL_NEW_PRODUCT);
+
+  // Memoized Computations
   const selectedOrder = useMemo(() => orders.find(o => o.id === selectedOrderId), [orders, selectedOrderId]);
   const pendingOrders = useMemo(() => orders.filter(o => o.status === OrderStatus.PENDING), [orders]);
   const totalRevenue = useMemo(() => orders.filter(o => o.status === OrderStatus.PAID).reduce((acc, o) => acc + o.total, 0), [orders]);
+  const categories = useMemo(() => Array.from(new Set(products.map(p => p.category))), [products]);
 
-  // 2. Early Return (After all hooks)
+  // Security Gate
   if (!currentUser || currentUser.role !== UserRole.ADMIN) return null;
 
-  // 3. Methods
+  // Handlers
   const handleAction = (status: OrderStatus) => {
     if (selectedOrderId) {
       updateStatus(selectedOrderId, status, adminNote);
@@ -40,81 +64,136 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
   const saveProductEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
-    
     setProducts(products.map(p => p.id === editingProduct.id ? editingProduct : p));
     setEditingProduct(null);
   };
 
-  const handlePriceChange = (value: string) => {
-    if (!editingProduct) return;
-    // Allow empty string for clearing, but parse to float for the state
-    const parsed = parseFloat(value);
-    setEditingProduct({
-      ...editingProduct,
-      price: isNaN(parsed) ? 0 : parsed
-    });
+  const createProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = `PROD-${Date.now()}`;
+    setProducts([{ ...newProduct, id }, ...products]);
+    setIsAddingProduct(false);
+    resetNewProductForm();
+  };
+
+  const resetNewProductForm = () => {
+    setNewProduct(INITIAL_NEW_PRODUCT);
+    setIsCustomCategory(false);
+  };
+
+  /**
+   * Robust Price Change Handler
+   */
+  const handlePriceInput = (val: string, isNewEntry: boolean) => {
+    const sanitized = val.replace(/[^0-9.]/g, '');
+    const parts = sanitized.split('.');
+    const finalSanitized = parts[0] + (parts.length > 1 ? '.' + parts[1].slice(0, 2) : '');
+    
+    const parsed = parseFloat(finalSanitized);
+    const finalValue = isNaN(parsed) ? 0 : parsed;
+    
+    if (isNewEntry) {
+      setNewProduct(prev => ({ ...prev, price: finalValue }));
+    } else if (editingProduct) {
+      setEditingProduct({ ...editingProduct, price: finalValue });
+    }
+  };
+
+  /**
+   * Image Upload Handler
+   */
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isNewEntry: boolean) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        if (isNewEntry) {
+          setNewProduct(prev => ({ ...prev, image: base64 }));
+        } else if (editingProduct) {
+          setEditingProduct({ ...editingProduct, image: base64 });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCategoryChange = (val: string) => {
+    if (val === 'CUSTOM') {
+      setIsCustomCategory(true);
+      setNewProduct({ ...newProduct, category: '' });
+    } else {
+      setIsCustomCategory(false);
+      setNewProduct({ ...newProduct, category: val });
+    }
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Kitchen Command</h1>
-          <p className="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest mt-1 flex items-center gap-2">
-            <ShieldCheck className="w-3.5 h-3.5" /> High-Intensity Boutique Management
-          </p>
+        <div className="flex items-center gap-5">
+          <div className="w-16 h-16 bg-amber-600 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-amber-600/20 shrink-0">
+            <ChefHat className="w-8 h-8" />
+          </div>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Kitchen Command</h1>
+            <p className="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest mt-1 flex items-center gap-2">
+              <ShieldCheck className="w-3.5 h-3.5" /> Head Chef Portfolio Console
+            </p>
+          </div>
         </div>
         
-        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 w-full lg:w-auto">
-          <button onClick={() => setActiveTab('orders')} className={`flex-1 lg:flex-none px-4 md:px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'orders' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Requests</button>
-          <button onClick={() => setActiveTab('inventory')} className={`flex-1 lg:flex-none px-4 md:px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'inventory' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Inventory</button>
-          <button onClick={() => setActiveTab('analytics')} className={`flex-1 lg:flex-none px-4 md:px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'analytics' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Insights</button>
+        <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 w-full lg:w-auto">
+          <button onClick={() => setActiveTab('batches')} className={`flex-1 lg:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'batches' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Batches</button>
+          <button onClick={() => setActiveTab('inventory')} className={`flex-1 lg:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'inventory' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Inventory</button>
+          <button onClick={() => setActiveTab('metrics')} className={`flex-1 lg:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'metrics' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Metrics</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-12">
-        <div className="bg-emerald-900 text-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] relative overflow-hidden group shadow-2xl">
+      {/* Stats Cards Dashboard */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        <div className="bg-emerald-900 text-white p-8 rounded-[2.5rem] relative overflow-hidden group shadow-2xl">
           <h3 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">Verified Revenue</h3>
-          <p className="text-3xl md:text-4xl font-black">${totalRevenue.toFixed(2)}</p>
-          <BarChart3 className="absolute -right-4 -bottom-4 w-20 h-20 md:w-24 md:h-24 opacity-10 group-hover:scale-110 transition-transform" />
+          <p className="text-4xl font-black">${totalRevenue.toFixed(2)}</p>
+          <BarChart3 className="absolute -right-4 -bottom-4 w-24 h-24 opacity-10 group-hover:scale-110 transition-transform" />
         </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Pending Batches</h3>
-          <p className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">{pendingOrders.length}</p>
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-sm">
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Pending Approvals</h3>
+          <p className="text-4xl font-black text-slate-900 dark:text-white">{pendingOrders.length}</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm hidden sm:block">
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-sm hidden sm:block">
           <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Kitchen Load</h3>
-          <p className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">{orders.length}</p>
+          <p className="text-4xl font-black text-slate-900 dark:text-white">{orders.length}</p>
         </div>
       </div>
 
-      {activeTab === 'orders' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {activeTab === 'batches' && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] md:rounded-[3rem] overflow-hidden shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-950 text-slate-400 dark:text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] border-b border-slate-100 dark:border-slate-800">
-                  <th className="px-6 md:px-10 py-6 md:py-8">Request ID</th>
-                  <th className="px-6 md:px-10 py-6 md:py-8 hidden md:table-cell">Patron</th>
-                  <th className="px-6 md:px-10 py-6 md:py-8">Value</th>
-                  <th className="px-6 md:px-10 py-6 md:py-8">Status</th>
-                  <th className="px-6 md:px-10 py-6 md:py-8 text-right">Action</th>
+                  <th className="px-10 py-8">Batch ID</th>
+                  <th className="px-10 py-8 hidden md:table-cell">Patron</th>
+                  <th className="px-10 py-8">Value</th>
+                  <th className="px-10 py-8">Status</th>
+                  <th className="px-10 py-8 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                 {orders.map(order => (
                   <tr key={order.id} onClick={() => { setSelectedOrderId(order.id); setAdminNote(order.adminNote || ''); }} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-all group">
-                    <td className="px-6 md:px-10 py-6 md:py-8 font-black text-slate-900 dark:text-white text-sm">{order.id}</td>
-                    <td className="px-6 md:px-10 py-6 md:py-8 font-bold uppercase text-[10px] text-slate-600 dark:text-slate-400 hidden md:table-cell">{order.customerName}</td>
-                    <td className="px-6 md:px-10 py-6 md:py-8 font-black text-slate-900 dark:text-white text-sm">${order.total.toFixed(2)}</td>
-                    <td className="px-6 md:px-10 py-6 md:py-8">
-                      <span className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
+                    <td className="px-10 py-8 font-black text-slate-900 dark:text-white text-sm">{order.id}</td>
+                    <td className="px-10 py-8 font-bold uppercase text-[10px] text-slate-600 dark:text-slate-400 hidden md:table-cell">{order.customerName}</td>
+                    <td className="px-10 py-8 font-black text-slate-900 dark:text-white text-sm">${order.total.toFixed(2)}</td>
+                    <td className="px-10 py-8">
+                      <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
                         order.status === OrderStatus.PENDING ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border-amber-100' :
                         order.status === OrderStatus.APPROVED ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border-emerald-100' :
                         order.status === OrderStatus.PAID ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' : 'bg-rose-50 text-rose-700'
                       }`}>{order.status}</span>
                     </td>
-                    <td className="px-6 md:px-10 py-6 md:py-8 text-right">
+                    <td className="px-10 py-8 text-right">
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-amber-600 transition-colors inline" />
                     </td>
                   </tr>
@@ -126,177 +205,440 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
       )}
 
       {activeTab === 'inventory' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {products.map(product => (
-            <div key={product.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-[2rem] shadow-sm flex items-center gap-6 group hover:border-amber-200 transition-all">
-              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 shrink-0">
-                <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="flex-grow">
-                <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1">{product.name}</h4>
-                <div className="flex items-center justify-between mb-3">
-                   <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-widest">{product.category}</p>
-                   <p className="text-xs font-black text-slate-900 dark:text-white">${product.price.toFixed(2)}</p>
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+             <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Active Menu Items</h2>
+             <button 
+              onClick={() => setIsAddingProduct(true)}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-emerald-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-900 transition-all active:scale-95 shadow-xl shadow-emerald-900/20"
+             >
+               <Plus className="w-4 h-4" /> Add New Delicacy
+             </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {products.map(product => (
+              <div key={product.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-[2rem] shadow-sm flex items-center gap-6 group hover:border-amber-200 transition-all">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 shrink-0">
+                  <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className={`text-[8px] md:text-[9px] font-black uppercase tracking-widest px-2 md:px-3 py-1 rounded-full border ${product.stockStatus === StockStatus.SOLD_OUT ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
-                    {product.stockStatus === StockStatus.SOLD_OUT ? 'Out of Batch' : 'Active Batch'}
-                  </span>
-                  <button onClick={() => setEditingProduct(product)} className="p-2 text-slate-400 hover:text-amber-600 transition-colors">
-                    <Settings className="w-4 h-4" />
-                  </button>
+                <div className="flex-grow">
+                  <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1">{product.name}</h4>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-widest">{product.category}</p>
+                    <p className="text-xs font-black text-slate-900 dark:text-white">${product.price.toFixed(2)}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${product.stockStatus === StockStatus.SOLD_OUT ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                      {product.stockStatus === StockStatus.SOLD_OUT ? 'Out of Batch' : 'Active Batch'}
+                    </span>
+                    <button onClick={() => setEditingProduct(product)} className="p-2 text-slate-400 hover:text-amber-600 transition-colors">
+                      <Settings className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
-      {activeTab === 'analytics' && (
-        <div className="py-20 text-center border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[3rem] md:rounded-[4rem] animate-in zoom-in-95 duration-500">
-          <BarChart3 className="w-12 h-12 md:w-16 md:h-16 text-slate-200 dark:text-slate-800 mx-auto mb-6" />
-          <h3 className="text-lg md:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2 px-4">Marketplace Intelligence</h3>
-          <p className="text-[10px] md:text-[11px] text-slate-500 font-bold uppercase tracking-widest px-4">Compiling current kitchen metrics...</p>
+      {activeTab === 'metrics' && (
+        <div className="py-32 text-center border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[4rem] animate-in zoom-in-95 duration-500">
+          <BarChart3 className="w-20 h-20 text-slate-200 dark:text-slate-800 mx-auto mb-6" />
+          <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">Kitchen Intelligence</h3>
+          <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Compiling current kitchen metrics...</p>
         </div>
       )}
 
-      {/* Order Review Modal */}
+      {/* Robust Order Review Modal with Decision Notes */}
       {selectedOrderId && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setSelectedOrderId(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] flex flex-col rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-             <div className="p-6 md:p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/50 shrink-0">
-                <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight line-clamp-1">Review Batch {selectedOrder.id}</h3>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] flex flex-col rounded-[2.5rem] md:rounded-[3.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+             <div className="p-8 md:p-10 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/50 shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-amber-600 text-white flex items-center justify-center">
+                    <ChefHat className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Review Batch</h3>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Reference: {selectedOrder.id}</p>
+                  </div>
+                </div>
                 <button onClick={() => setSelectedOrderId(null)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors shrink-0"><X /></button>
              </div>
              
-             <div className="p-6 md:p-10 space-y-6 md:space-y-8 overflow-y-auto flex-grow no-scrollbar">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8">
+             <div className="p-8 md:p-12 space-y-8 md:space-y-10 overflow-y-auto flex-grow no-scrollbar">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Patron</p>
-                      <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-800 font-black text-sm text-slate-900 dark:text-white">{selectedOrder.customerName}</div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Patron Identity</p>
+                      <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 font-black text-sm text-slate-900 dark:text-white">{selectedOrder.customerName}</div>
                    </div>
                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Batch Value</p>
-                      <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-100 dark:border-slate-800 font-black text-lg md:text-xl text-emerald-800 dark:text-emerald-500">${selectedOrder.total.toFixed(2)}</div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Batch Value</p>
+                      <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 font-black text-xl text-emerald-800 dark:text-emerald-500">${selectedOrder.total.toFixed(2)}</div>
                    </div>
                 </div>
 
                 <div>
                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Batch Composition</p>
-                   <div className="space-y-2 max-h-40 md:max-h-48 overflow-y-auto no-scrollbar pr-1">
+                   <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar pr-1">
                       {selectedOrder.items.map((item, i) => (
-                        <div key={i} className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm">
+                        <div key={i} className="flex justify-between items-center bg-white dark:bg-slate-800 p-5 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm">
                            <span className="text-xs font-black text-slate-900 dark:text-white">{item.quantity}x {item.name}</span>
-                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hidden sm:inline">{item.category}</span>
+                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.category}</span>
                         </div>
                       ))}
                    </div>
                 </div>
 
-                {selectedOrder.status === OrderStatus.PENDING && (
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-2">
-                      <MessageCircle className="w-3.5 h-3.5" /> Direct Note to Patron
-                    </label>
-                    <textarea 
-                      value={adminNote} 
-                      onChange={e => setAdminNote(e.target.value)} 
-                      placeholder="e.g. Ingredients verified for 6PM batch. Proceed to secure pay." 
-                      className="w-full p-4 md:p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-3xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 h-24 md:h-32 resize-none" 
-                    />
-                  </div>
-                )}
+                {/* THE DECISION NOTE FIELD */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4" /> Head Chef Decision Note
+                  </label>
+                  <textarea 
+                    value={adminNote} 
+                    onChange={e => setAdminNote(e.target.value)} 
+                    placeholder={selectedOrder.status === OrderStatus.PENDING ? "Provide reasoning or instructions for this batch (e.g., ingredient availability or pickup details)..." : "Notes for this batch..."}
+                    readOnly={selectedOrder.status !== OrderStatus.PENDING}
+                    className={`w-full p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl text-sm font-bold text-slate-900 dark:text-white outline-none transition-all ${selectedOrder.status === OrderStatus.PENDING ? 'focus:ring-4 focus:ring-emerald-500/10' : 'opacity-60 grayscale' } h-32 resize-none`} 
+                  />
+                  {selectedOrder.status === OrderStatus.PENDING && (
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight italic">Patrons will see this note upon status update.</p>
+                  )}
+                </div>
              </div>
 
              {selectedOrder.status === OrderStatus.PENDING && (
-                <div className="p-6 md:p-10 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 shrink-0">
-                   <button onClick={() => handleAction(OrderStatus.REJECTED)} className="order-2 sm:order-1 py-4 md:py-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-rose-600 rounded-xl md:rounded-2xl font-black text-[10px] md:text-[11px] uppercase tracking-widest hover:bg-rose-50 transition-all active:scale-95">Deny Batch</button>
-                   <button onClick={() => handleAction(OrderStatus.APPROVED)} className="order-1 sm:order-2 py-4 md:py-5 bg-emerald-800 text-white rounded-xl md:rounded-2xl font-black text-[10px] md:text-[11px] uppercase tracking-widest hover:bg-emerald-900 transition-all shadow-xl active:scale-95 shadow-emerald-900/20">Verify & Approve</button>
+                <div className="p-8 md:p-12 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 shrink-0">
+                   <button 
+                     onClick={() => handleAction(OrderStatus.REJECTED)} 
+                     className="order-2 sm:order-1 py-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-rose-600 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-rose-50 transition-all active:scale-95"
+                   >
+                     Deny Batch
+                   </button>
+                   <button 
+                     onClick={() => handleAction(OrderStatus.APPROVED)} 
+                     className="order-1 sm:order-2 py-5 bg-emerald-800 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-emerald-900 transition-all shadow-xl active:scale-95 shadow-emerald-900/20"
+                   >
+                     Verify & Approve
+                   </button>
                 </div>
              )}
           </div>
         </div>
       )}
 
-      {/* Product Edit Modal */}
+      {/* Robust Product Entry (Add) Modal */}
+      {isAddingProduct && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setIsAddingProduct(false)}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-6xl max-h-[95vh] flex flex-col rounded-[2.5rem] md:rounded-[4rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-8 md:p-12 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/50 shrink-0">
+               <div className="flex items-center gap-5">
+                 <div className="w-14 h-14 rounded-2xl bg-emerald-800 text-white flex items-center justify-center shadow-lg shadow-emerald-900/20">
+                    <Plus className="w-7 h-7" />
+                 </div>
+                 <div>
+                    <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">New Delicacy</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Expansion of the artisanal menu</p>
+                 </div>
+               </div>
+               <button type="button" onClick={() => setIsAddingProduct(false)} className="p-3 text-slate-400 hover:text-rose-600 transition-colors bg-slate-100 dark:bg-slate-800 rounded-2xl"><X className="w-6 h-6" /></button>
+            </div>
+
+            <div className="flex-grow overflow-y-auto no-scrollbar">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 h-full">
+                {/* Responsive Form Section */}
+                <form id="add-product-form" onSubmit={createProduct} className="lg:col-span-7 p-8 md:p-12 space-y-10 border-r border-slate-100 dark:border-slate-800">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                          <Tag className="w-3.5 h-3.5 text-emerald-600" /> Dish Identity
+                        </label>
+                        <input 
+                          type="text" 
+                          value={newProduct.name} 
+                          onChange={e => setNewProduct({...newProduct, name: e.target.value})}
+                          placeholder="Saffron Mutton Roast"
+                          className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-emerald-700/10 transition-all" 
+                          required
+                        />
+                    </div>
+                    <div className="space-y-3">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                          <LayoutDashboard className="w-3.5 h-3.5 text-emerald-600" /> Collection
+                        </label>
+                        {!isCustomCategory ? (
+                          <div className="relative">
+                            <select 
+                              value={newProduct.category} 
+                              onChange={e => handleCategoryChange(e.target.value)}
+                              className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-emerald-700/10 transition-all appearance-none cursor-pointer"
+                            >
+                              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                              <option value="CUSTOM">+ Define New Collection</option>
+                            </select>
+                            <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 w-5 h-5 pointer-events-none" />
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <input 
+                              type="text" 
+                              value={newProduct.category} 
+                              onChange={e => setNewProduct({...newProduct, category: e.target.value.toUpperCase()})}
+                              placeholder="CATEGORY NAME"
+                              className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-emerald-700/10 transition-all uppercase" 
+                              required
+                            />
+                            <button type="button" onClick={() => setIsCustomCategory(false)} className="absolute right-6 top-1/2 -translate-y-1/2 text-emerald-600"><RefreshCcw className="w-4 h-4" /></button>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                      <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <FileText className="w-3.5 h-3.5 text-emerald-600" /> Heritage & Narrative
+                      </label>
+                      <textarea 
+                        value={newProduct.description} 
+                        onChange={e => setNewProduct({...newProduct, description: e.target.value})}
+                        placeholder="Detail the artisanal process and premium components..."
+                        className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-emerald-700/10 h-32 resize-none transition-all" 
+                        required
+                      />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                      <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Boutique Value ($)
+                      </label>
+                      <div className="relative group">
+                        <span className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-400 font-black text-sm">$</span>
+                        <input 
+                          type="text" 
+                          value={newProduct.price || ''} 
+                          onChange={e => handlePriceInput(e.target.value, true)}
+                          placeholder="12.50"
+                          className="w-full pl-12 pr-8 py-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] text-sm font-black text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-emerald-700/10 transition-all" 
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <Upload className="w-3.5 h-3.5 text-emerald-600" /> Aesthetic Upload
+                      </label>
+                      <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-950 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[1.5rem] flex items-center justify-center gap-4 cursor-pointer hover:border-emerald-700/30 transition-all"
+                      >
+                        <Camera className="w-5 h-5 text-slate-400" />
+                        <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
+                          {newProduct.image ? 'Image Selected' : 'Choose Local File'}
+                        </span>
+                        <input 
+                          ref={fileInputRef}
+                          type="file" 
+                          accept="image/*"
+                          onChange={e => handleImageUpload(e, true)}
+                          className="hidden" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-5 pt-4">
+                    <label className="flex-1 min-w-[200px] flex items-center gap-5 cursor-pointer group bg-slate-50 dark:bg-slate-950 px-8 py-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 hover:border-emerald-300 transition-all">
+                      <input type="checkbox" checked={newProduct.isNew} onChange={e => setNewProduct({...newProduct, isNew: e.target.checked})} className="w-6 h-6 rounded-lg border-slate-300 text-emerald-600 focus:ring-emerald-700" />
+                      <div>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white block">Verified New Addition</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Active promotion badge</span>
+                      </div>
+                    </label>
+                    <label className="flex-1 min-w-[200px] flex items-center gap-5 cursor-pointer group bg-slate-50 dark:bg-slate-950 px-8 py-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 hover:border-amber-300 transition-all">
+                      <input type="checkbox" checked={newProduct.isMondaySpecial} onChange={e => setNewProduct({...newProduct, isMondaySpecial: e.target.checked})} className="w-6 h-6 rounded-lg border-slate-300 text-amber-600 focus:ring-amber-500" />
+                      <div>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white block">Monday Heritage Dish</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Monday menu exclusivity</span>
+                      </div>
+                    </label>
+                  </div>
+                </form>
+
+                {/* Live Preview Display Section */}
+                <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-950/50 p-12 flex flex-col items-center justify-center text-center">
+                   <div className="mb-12">
+                      <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-400 text-[9px] font-black uppercase tracking-[0.2em] mb-6 shadow-sm border border-emerald-200/50">
+                        <Eye className="w-4 h-4" /> Live Boutique Preview
+                      </div>
+                      <p className="text-[12px] font-medium text-slate-500 max-w-[260px] mx-auto leading-relaxed uppercase tracking-tight opacity-80">Patrons will view this exact configuration upon successful kitchen authorization.</p>
+                   </div>
+                   
+                   <div className="w-full max-w-[320px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] rounded-3xl transform hover:scale-105 transition-transform duration-500">
+                      <ProductCard 
+                        product={{...newProduct, id: 'preview'} as Product} 
+                        onAddToCart={() => {}} 
+                      />
+                   </div>
+
+                   <div className="mt-16 space-y-5 w-full max-w-[320px]">
+                      <div className="flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 text-left shadow-sm">
+                        <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 rounded-xl flex items-center justify-center shadow-inner"><Package className="w-5 h-5" /></div>
+                        <div>
+                          <p className="text-[9px] font-black uppercase text-slate-400">Inventory Sync</p>
+                          <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200">Global Boutique Availability</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 text-left opacity-40 grayscale">
+                        <div className="w-12 h-12 bg-amber-50 dark:bg-amber-950 text-amber-600 rounded-xl flex items-center justify-center"><RefreshCcw className="w-5 h-5" /></div>
+                        <div>
+                          <p className="text-[9px] font-black uppercase text-slate-400">Audit Protocol</p>
+                          <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200">Pending Head Chef Approval</p>
+                        </div>
+                      </div>
+                   </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-12 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row gap-6 shrink-0">
+              <button 
+                type="submit" 
+                form="add-product-form"
+                className="flex-grow py-6 bg-emerald-800 text-white rounded-[1.5rem] md:rounded-[2rem] font-black text-[12px] uppercase tracking-[0.3em] hover:bg-emerald-900 transition-all shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-5 active:scale-[0.98]"
+              >
+                <Save className="w-6 h-6" /> Authorize & Launch Delicacy
+              </button>
+              <button 
+                type="button" 
+                onClick={resetNewProductForm}
+                className="py-6 px-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-400 rounded-[1.5rem] md:rounded-[2rem] font-black text-[11px] uppercase tracking-widest hover:text-rose-600 transition-all active:scale-[0.98]"
+              >
+                Clear Fields
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Robust Product Edit Modal - RESPONSIVENESS UPDATED */}
       {editingProduct && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setEditingProduct(null)}></div>
-          <form onSubmit={saveProductEdit} className="relative bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-6 md:p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/50">
-               <div className="flex items-center gap-3">
-                 <Package className="w-5 h-5 text-amber-600" />
-                 <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Edit Delicacy</h3>
+          <form 
+            onSubmit={saveProductEdit} 
+            className="relative bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[95vh] flex flex-col rounded-[2.5rem] md:rounded-[4rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
+          >
+            {/* Modal Header */}
+            <div className="p-6 md:p-10 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/50 shrink-0">
+               <div className="flex items-center gap-4 md:gap-5">
+                 <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-900/20">
+                    <ChefHat className="w-5 h-5 md:w-7 md:h-7" />
+                 </div>
+                 <h3 className="text-xl md:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Refine Delicacy</h3>
                </div>
-               <button type="button" onClick={() => setEditingProduct(null)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><X /></button>
+               <button type="button" onClick={() => setEditingProduct(null)} className="p-2 md:p-3 text-slate-400 hover:text-rose-600 transition-colors bg-slate-100 dark:bg-slate-800 rounded-xl md:rounded-2xl shrink-0"><X className="w-5 h-5 md:w-6 md:h-6" /></button>
             </div>
 
-            <div className="p-8 md:p-10 space-y-8">
-               <div className="flex gap-6 items-center">
-                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 shrink-0 shadow-sm">
-                    <img src={editingProduct.image} className="w-full h-full object-cover" alt={editingProduct.name} />
+            {/* Scrollable Content Area */}
+            <div className="flex-grow overflow-y-auto no-scrollbar p-6 md:p-14 space-y-8 md:space-y-12">
+               {/* Adaptive Image/Identity Section */}
+               <div className="flex flex-col sm:flex-row gap-6 md:gap-10 items-center sm:items-end">
+                  <div 
+                    onClick={() => editFileInputRef.current?.click()}
+                    className="w-32 h-32 md:w-40 md:h-40 rounded-[2rem] md:rounded-[3rem] overflow-hidden border-4 border-white dark:border-slate-800 shrink-0 shadow-2xl group relative cursor-pointer"
+                  >
+                    <img src={editingProduct.image} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt={editingProduct.name} />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Camera className="text-white w-6 h-6" />
+                    </div>
+                    <input 
+                      ref={editFileInputRef}
+                      type="file" 
+                      accept="image/*"
+                      onChange={e => handleImageUpload(e, false)}
+                      className="hidden" 
+                    />
                   </div>
-                  <div className="flex-grow space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dish Identity</label>
+                  <div className="flex-grow space-y-3 md:space-y-4 w-full">
+                    <label className="text-[10px] md:text-[11px] font-black text-slate-400 uppercase tracking-widest block text-center sm:text-left">Boutique Identifier</label>
                     <input 
                       type="text" 
                       value={editingProduct.name} 
                       onChange={e => setEditingProduct({...editingProduct, name: e.target.value})}
-                      className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500" 
+                      className="w-full px-6 md:px-8 py-4 md:py-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-[1.5rem] text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-amber-600/10" 
                       required
                     />
                   </div>
                </div>
 
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <DollarSign className="w-3 h-3" /> Boutique Price
+               {/* Grid Controls */}
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-10">
+                  <div className="space-y-3 md:space-y-4">
+                    <label className="text-[10px] md:text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-3">
+                      <DollarSign className="w-4 h-4 text-amber-600" /> Marketplace Price ($)
                     </label>
-                    <div className="relative group">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-sm">$</span>
+                    <div className="relative">
+                      <span className="absolute left-6 md:left-8 top-1/2 -translate-y-1/2 text-slate-400 font-black text-sm">$</span>
                       <input 
-                        type="number" 
-                        step="0.01"
-                        min="0"
-                        value={editingProduct.price} 
-                        onChange={e => handlePriceChange(e.target.value)}
-                        placeholder="0.00"
-                        className="w-full pl-8 pr-4 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                        type="text" 
+                        value={editingProduct.price || ''} 
+                        onChange={e => handlePriceInput(e.target.value, false)}
+                        className="w-full pl-10 md:pl-12 pr-6 md:pr-8 py-4 md:py-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-[1.5rem] text-sm font-black text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-amber-600/10 transition-all" 
                         required
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <AlertTriangle className="w-3 h-3" /> Batch Availability
+                  <div className="space-y-3 md:space-y-4">
+                    <label className="text-[10px] md:text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-3">
+                      <AlertTriangle className="w-4 h-4 text-amber-600" /> Batch Status
                     </label>
-                    <select 
-                      value={editingProduct.stockStatus} 
-                      onChange={e => setEditingProduct({...editingProduct, stockStatus: e.target.value as StockStatus})}
-                      className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500 appearance-none cursor-pointer"
-                    >
-                      <option value={StockStatus.IN_STOCK}>In Stock (Live)</option>
-                      <option value={StockStatus.LOW_STOCK}>Low Stock (Alert)</option>
-                      <option value={StockStatus.SOLD_OUT}>Sold Out (Locked)</option>
-                    </select>
+                    <div className="relative">
+                      <select 
+                        value={editingProduct.stockStatus} 
+                        onChange={e => setEditingProduct({...editingProduct, stockStatus: e.target.value as StockStatus})}
+                        className="w-full px-6 md:px-8 py-4 md:py-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl md:rounded-[1.5rem] text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-amber-600/10 appearance-none cursor-pointer"
+                      >
+                        <option value={StockStatus.IN_STOCK}>Live Batch (In Stock)</option>
+                        <option value={StockStatus.LOW_STOCK}>Restricted Batch (Low Stock)</option>
+                        <option value={StockStatus.SOLD_OUT}>Archived Batch (Sold Out)</option>
+                      </select>
+                      <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 w-5 h-5 pointer-events-none" />
+                    </div>
                   </div>
+               </div>
+
+               {/* Description Field (Added for full context management) */}
+               <div className="space-y-3 md:space-y-4">
+                  <label className="text-[10px] md:text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-3">
+                    <FileText className="w-4 h-4 text-amber-600" /> Narrative & Heritage
+                  </label>
+                  <textarea 
+                    value={editingProduct.description} 
+                    onChange={e => setEditingProduct({...editingProduct, description: e.target.value})}
+                    className="w-full p-6 md:p-8 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] md:rounded-[2rem] text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-amber-600/10 h-32 md:h-40 resize-none transition-all" 
+                  />
                </div>
             </div>
 
-            <div className="p-8 md:p-10 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
+            {/* Modal Footer */}
+            <div className="p-6 md:p-14 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-4 md:gap-6 shrink-0">
               <button 
                 type="submit" 
-                className="flex-grow py-4 md:py-5 bg-slate-900 dark:bg-amber-600 text-white rounded-xl md:rounded-2xl font-black text-[10px] md:text-[11px] uppercase tracking-widest hover:bg-black transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95"
+                className="flex-grow py-5 md:py-6 bg-slate-900 dark:bg-amber-600 text-white rounded-2xl md:rounded-[2rem] font-black text-[11px] md:text-[12px] uppercase tracking-[0.2em] md:tracking-[0.3em] hover:bg-black transition-all shadow-2xl shadow-slate-900/20 flex items-center justify-center gap-4 md:gap-5 active:scale-[0.98]"
               >
-                <Save className="w-4 h-4" /> Authorize Update
+                <Save className="w-5 h-5 md:w-6 md:h-6" /> Authorize Metadata Update
               </button>
               <button 
                 type="button" 
                 onClick={() => setEditingProduct(null)} 
-                className="py-4 md:py-5 px-8 md:px-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-400 rounded-xl md:rounded-2xl font-black text-[10px] md:text-[11px] uppercase tracking-widest hover:text-slate-900 transition-all"
+                className="py-5 md:py-6 px-8 md:px-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-400 rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-[11px] uppercase tracking-widest hover:text-slate-900 transition-all active:scale-[0.98]"
               >
                 Discard
               </button>

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ShoppingBag, ArrowRight, Minus, Plus, Trash2, ClipboardList, ShieldCheck, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ShoppingBag, ArrowRight, Minus, Plus, Trash2, ClipboardList, ShieldCheck, Clock, CheckCircle2, AlertTriangle, X } from 'lucide-react';
 import { CartItem } from '../types';
 import { Link } from 'react-router-dom';
 
@@ -57,9 +57,10 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
         <h1 className="text-4xl font-black text-slate-950 dark:text-slate-100 uppercase tracking-tighter">Shopping Bag</h1>
         <button 
           onClick={() => setShowConfirmClear(true)}
-          className="flex items-center gap-2 text-[10px] font-black text-rose-600 dark:text-rose-50 uppercase tracking-widest bg-rose-50 dark:bg-rose-950/30 px-5 py-2.5 rounded-xl transition-all hover:bg-rose-100 active:scale-95"
+          className="flex items-center gap-2 text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-[0.2em] bg-rose-50 dark:bg-rose-950/30 px-6 py-3 rounded-2xl transition-all hover:bg-rose-100 dark:hover:bg-rose-900/40 active:scale-95 group shadow-sm border border-rose-100 dark:border-rose-900/50"
         >
-          <Trash2 className="w-4 h-4" /> Clear All Items
+          <Trash2 className="w-4 h-4 group-hover:rotate-12 transition-transform" /> 
+          Clear Current Batch
         </button>
       </div>
       
@@ -80,12 +81,12 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-inner">
                     <button onClick={() => updateQuantity(item.id, -1)} className="p-1.5 text-slate-400 hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors"><Minus className="w-4 h-4" /></button>
-                    <span className="text-sm font-black w-8 text-center text-slate-900 dark:text-slate-100">{item.quantity}</span>
+                    <span className="text-sm font-black w-8 text-center text-slate-900 dark:text-white tabular-nums">{item.quantity}</span>
                     <button onClick={() => updateQuantity(item.id, 1)} className="p-1.5 text-slate-400 hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors"><Plus className="w-4 h-4" /></button>
                   </div>
-                  <button onClick={() => removeFromCart(item.id)} className="text-slate-300 hover:text-red-600 dark:hover:text-red-500 transition-colors p-2 active:scale-90">
+                  <button onClick={() => removeFromCart(item.id)} className="text-slate-300 hover:text-rose-600 dark:hover:text-rose-500 transition-colors p-2 active:scale-90" title="Remove item">
                     <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
@@ -143,31 +144,43 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
         </div>
       </div>
 
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog for Clear Cart */}
       {showConfirmClear && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setShowConfirmClear(false)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-300">
+          <div 
+            className="absolute inset-0 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" 
+            onClick={() => setShowConfirmClear(false)}
+          ></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-10 md:p-12 shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300">
+            <button 
+              onClick={() => setShowConfirmClear(false)}
+              className="absolute top-8 right-8 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
             <div className="text-center mb-10">
-              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-950/50 rounded-2xl flex items-center justify-center text-rose-600 mx-auto mb-6 border border-rose-100 dark:border-rose-900">
-                <AlertTriangle className="w-8 h-8" />
+              <div className="w-20 h-20 bg-rose-50 dark:bg-rose-950/30 rounded-3xl flex items-center justify-center text-rose-600 mx-auto mb-8 border border-rose-100 dark:border-rose-900 shadow-inner">
+                <AlertTriangle className="w-10 h-10 animate-pulse" />
               </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Clear Batch?</h3>
-              <p className="text-xs font-medium text-slate-500 mt-2 leading-relaxed">This will remove all artisanal selections from your current bag. This action cannot be undone.</p>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-4">Are you sure?</h3>
+              <p className="text-[13px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                Confirming this action will remove <span className="text-slate-900 dark:text-white font-black underline decoration-rose-500/30">all artisanal items</span> from your current batch request. This curated selection cannot be restored once cleared.
+              </p>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button 
                 onClick={() => setShowConfirmClear(false)} 
-                className="py-4 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:bg-slate-100 dark:hover:bg-slate-700"
+                className="order-2 sm:order-1 py-4.5 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-300 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95"
               >
-                Cancel
+                No, Keep My Batch
               </button>
               <button 
                 onClick={() => { clearCart(); setShowConfirmClear(false); }} 
-                className="py-4 bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-rose-900/20 transition-all hover:bg-rose-700 active:scale-95"
+                className="order-1 sm:order-2 py-4.5 bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-rose-900/20 transition-all hover:bg-rose-700 active:scale-95 flex items-center justify-center gap-2"
               >
-                Clear All
+                <Trash2 className="w-3.5 h-3.5" /> Yes, Clear All
               </button>
             </div>
           </div>

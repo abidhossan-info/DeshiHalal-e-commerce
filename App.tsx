@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
-import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed } from 'lucide-react';
+import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat } from 'lucide-react';
 import { Product, Order, OrderStatus, UserRole, User as UserType, CartItem, Notification, Review } from './types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN, MOCK_USER } from './constants';
 
@@ -35,6 +35,8 @@ const App: React.FC = () => {
   const unreadNotifCount = useMemo(() => 
     notifications.filter(n => n.userId === currentUser?.id && !n.read).length, 
   [notifications, currentUser]);
+
+  const isHeadChef = useMemo(() => currentUser?.role === UserRole.ADMIN, [currentUser]);
 
   // 3. Side Effects (useEffect)
   useEffect(() => {
@@ -170,18 +172,18 @@ const App: React.FC = () => {
           : order
       );
 
-      const noteText = note ? ` Chef Note: ${note}` : '';
+      const noteText = note ? ` Head Chef Note: ${note}` : '';
       if (status === OrderStatus.APPROVED) {
         addNotification(
           targetOrder.userId, 
-          'Payment Approved!', 
+          'Verified by Head Chef', 
           `Your batch ${orderId} is verified. Payment is now unlocked.${noteText}`, 
           'ORDER_UPDATE'
         );
       } else if (status === OrderStatus.REJECTED) {
         addNotification(
           targetOrder.userId, 
-          'Order Update', 
+          'Update from Head Chef', 
           `Batch ${orderId} cannot be fulfilled at this time.${noteText}`, 
           'ORDER_UPDATE'
         );
@@ -189,7 +191,7 @@ const App: React.FC = () => {
         addNotification(
           MOCK_ADMIN.id, 
           'Payment Verified', 
-          `Order ${orderId} has been paid. Start preparation.`, 
+          `Order ${orderId} has been paid. Start preparation immediately.`, 
           'SYSTEM'
         );
       }
@@ -221,18 +223,23 @@ const App: React.FC = () => {
             <Link to="/shop" className="hover:text-emerald-800 dark:hover:text-emerald-400">Veg & Nonveg</Link>
             <Link to="/shop?cat=SNACKS" className="hover:text-emerald-800 dark:hover:text-emerald-400">Snacks</Link>
             <Link to="/shop?cat=SWEETS" className="hover:text-emerald-800 dark:hover:text-emerald-400">Sweets</Link>
-            <a href="/#about" className="hover:text-emerald-800 dark:hover:text-emerald-400">About</a>
-            <a href="/#testimonials" className="hover:text-emerald-800 dark:hover:text-emerald-400">Testimonial</a>
+            {isHeadChef && (
+              <Link to="/admin" className="text-amber-600 dark:text-amber-500 flex items-center gap-1.5 hover:text-amber-700">
+                <ChefHat className="w-3.5 h-3.5" /> Kitchen Command
+              </Link>
+            )}
           </div>
 
           <div className="flex items-center space-x-5">
             <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-700 dark:text-slate-300">
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <Link to="/cart" className="relative p-2 text-slate-700 dark:text-slate-300">
-              <ShoppingBag className="w-5 h-5" />
-              {cartCount > 0 && <span className="absolute top-0 right-0 bg-rose-600 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full shadow-lg">{cartCount}</span>}
-            </Link>
+            {!isHeadChef && (
+              <Link to="/cart" className="relative p-2 text-slate-700 dark:text-slate-300">
+                <ShoppingBag className="w-5 h-5" />
+                {cartCount > 0 && <span className="absolute top-0 right-0 bg-rose-600 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full shadow-lg">{cartCount}</span>}
+              </Link>
+            )}
             {currentUser ? (
               <div className="flex items-center gap-4">
                 <Link to="/account" className="relative p-2 text-slate-700 dark:text-slate-300">

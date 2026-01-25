@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Order, OrderStatus, User as UserType, Notification } from '../types';
+import { useNavigate, Link } from 'react-router-dom';
+import { Order, OrderStatus, User as UserType, Notification, UserRole } from '../types';
 import { 
   Clock, CheckCircle, CreditCard, ShoppingBag, Bell, LogOut, 
   Loader2, Lock, ShieldCheck, MessageCircle, User as UserIcon, Settings,
-  ChevronRight, MapPin, Phone, AlertCircle, Sparkles, Edit2, Save, X, Camera, Mail
+  ChevronRight, MapPin, Phone, AlertCircle, Sparkles, Edit2, Save, X, Camera, Mail, ClipboardList, XCircle,
+  Package, ChefHat, UtensilsCrossed, BarChart3, LayoutDashboard
 } from 'lucide-react';
 
 interface AccountProps {
@@ -31,7 +32,6 @@ const Account: React.FC<AccountProps> = ({
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
   const [isPaying, setIsPaying] = useState(false);
   
-  // Settings / Edit Profile State
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -44,9 +44,11 @@ const Account: React.FC<AccountProps> = ({
 
   const navigate = useNavigate();
 
-  // All hooks must be called at the top level before any returns
-  const approvedOrders = useMemo(() => orders.filter(o => o.status === OrderStatus.APPROVED), [orders]);
-  const pendingOrders = useMemo(() => orders.filter(o => o.status === OrderStatus.PENDING), [orders]);
+  const isHeadChef = currentUser?.role === UserRole.ADMIN;
+
+  const sortedOrders = useMemo(() => {
+    return [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [orders]);
 
   useEffect(() => {
     if (currentUser) {
@@ -66,7 +68,6 @@ const Account: React.FC<AccountProps> = ({
     }
   }, [saveSuccess]);
 
-  // Conditional return must happen AFTER hook declarations
   if (!currentUser) return null;
 
   const handleSignOut = () => {
@@ -86,8 +87,6 @@ const Account: React.FC<AccountProps> = ({
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    
-    // Simulate API delay for premium feel
     setTimeout(() => {
       updateCurrentUser({
         name: editForm.name,
@@ -101,8 +100,6 @@ const Account: React.FC<AccountProps> = ({
     }, 1200);
   };
 
-  const activeOrders = [...approvedOrders, ...pendingOrders];
-  const history = orders.filter(o => o.status === OrderStatus.PAID || o.status === OrderStatus.REJECTED);
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
@@ -110,11 +107,11 @@ const Account: React.FC<AccountProps> = ({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 md:gap-8 mb-10 md:mb-16">
         <div className="flex items-center gap-4 md:gap-6">
            <div className="relative group">
-              <div className="w-16 h-16 md:w-24 md:h-24 bg-emerald-100 dark:bg-emerald-900 rounded-[1.5rem] md:rounded-[2.5rem] flex items-center justify-center text-2xl md:text-4xl font-black text-emerald-800 dark:text-emerald-400 border-4 border-white dark:border-slate-800 shadow-2xl overflow-hidden">
+              <div className={`w-16 h-16 md:w-24 md:h-24 rounded-[1.5rem] md:rounded-[2.5rem] flex items-center justify-center text-2xl md:text-4xl font-black border-4 border-white dark:border-slate-800 shadow-2xl overflow-hidden ${isHeadChef ? 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-400' : 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-400'}`}>
                 {currentUser.avatar ? (
                   <img src={currentUser.avatar} className="w-full h-full object-cover" alt={currentUser.name} />
                 ) : (
-                  currentUser.name.charAt(0)
+                  isHeadChef ? <ChefHat className="w-8 h-8 md:w-12 md:h-12" /> : currentUser.name.charAt(0)
                 )}
               </div>
               <button 
@@ -125,19 +122,49 @@ const Account: React.FC<AccountProps> = ({
               </button>
            </div>
            <div>
-              <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">{currentUser.name}</h1>
-              <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-widest mt-1 flex items-center gap-2">
-                <ShieldCheck className="w-3 h-3" /> Boutique Verified Patron
+              <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                {isHeadChef ? 'Master Head Chef' : currentUser.name}
+              </h1>
+              <p className={`text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2 ${isHeadChef ? 'text-amber-600' : 'text-emerald-800 dark:text-emerald-500'}`}>
+                {isHeadChef ? <ChefHat className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
+                {isHeadChef ? 'Boutique Kitchen Authority' : 'Boutique Verified Patron'}
               </p>
            </div>
         </div>
-        <button onClick={handleSignOut} className="w-full md:w-auto flex items-center justify-center gap-2 text-[10px] font-black text-rose-600 uppercase tracking-widest bg-rose-50 dark:bg-rose-950/30 px-6 py-3 rounded-2xl transition-all hover:bg-rose-100 active:scale-95">
-          <LogOut className="w-4 h-4" /> Terminate Session
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          {isHeadChef && (
+            <Link to="/admin" className="flex items-center justify-center gap-2 text-[10px] font-black text-white uppercase tracking-widest bg-amber-600 px-6 py-3 rounded-2xl transition-all hover:bg-amber-700 active:scale-95 shadow-lg shadow-amber-600/20">
+              <LayoutDashboard className="w-4 h-4" /> Kitchen Command
+            </Link>
+          )}
+          <button onClick={handleSignOut} className="flex items-center justify-center gap-2 text-[10px] font-black text-rose-600 uppercase tracking-widest bg-rose-50 dark:bg-rose-950/30 px-6 py-3 rounded-2xl transition-all hover:bg-rose-100 active:scale-95">
+            <LogOut className="w-4 h-4" /> Terminate Session
+          </button>
+        </div>
       </div>
 
-      {/* Action Banner for Approved Orders */}
-      {approvedOrders.length > 0 && (
+      {/* Head Chef Specific Quick Stats / Banner */}
+      {isHeadChef && (
+        <div className="mb-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+           <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
+              <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">Kitchen Status</h4>
+              <p className="text-2xl font-black uppercase tracking-tighter">Live & Operational</p>
+              <UtensilsCrossed className="absolute -right-2 -bottom-2 w-16 h-16 opacity-10 group-hover:scale-110 transition-transform" />
+           </div>
+           <div className="bg-emerald-900 text-white p-8 rounded-[2.5rem] border border-emerald-800 shadow-2xl relative overflow-hidden group">
+              <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">Total Batches</h4>
+              <p className="text-2xl font-black uppercase tracking-tighter">{orders.length} Handled</p>
+              <ClipboardList className="absolute -right-2 -bottom-2 w-16 h-16 opacity-10 group-hover:scale-110 transition-transform" />
+           </div>
+           <Link to="/admin" className="bg-amber-600 text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group hover:bg-amber-700 transition-colors">
+              <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">Portfolio Management</h4>
+              <p className="text-2xl font-black uppercase tracking-tighter flex items-center gap-2">Console Access <ChevronRight className="w-6 h-6" /></p>
+              <ChefHat className="absolute -right-2 -bottom-2 w-16 h-16 opacity-10 group-hover:scale-110 transition-transform" />
+           </Link>
+        </div>
+      )}
+
+      {!isHeadChef && orders.filter(o => o.status === OrderStatus.APPROVED).length > 0 && (
         <div className="mb-10 bg-emerald-800 text-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700 ring-4 ring-emerald-500/20 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
           <div className="flex items-center gap-5 relative z-10">
             <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center shrink-0 border border-white/20 animate-pulse">
@@ -149,21 +176,16 @@ const Account: React.FC<AccountProps> = ({
             </div>
           </div>
           <button 
-            onClick={() => {
-              setActiveTab('orders');
-              const el = document.getElementById(approvedOrders[0].id);
-              el?.scrollIntoView({ behavior: 'smooth' });
-            }}
+            onClick={() => setActiveTab('orders')}
             className="w-full md:w-auto px-8 py-4 bg-white text-emerald-900 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-emerald-50 transition-all active:scale-95"
           >
-            Go to Orders
+            View Approved Batches
           </button>
-          <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
         </div>
       )}
 
       <div className="flex gap-2 md:gap-4 mb-10 border-b border-slate-100 dark:border-slate-800 pb-4 overflow-x-auto no-scrollbar">
-        <button onClick={() => setActiveTab('orders')} className={`text-[10px] font-black uppercase tracking-widest px-6 md:px-8 py-3 rounded-xl md:rounded-2xl transition-all whitespace-nowrap ${activeTab === 'orders' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900'}`}>My Requests</button>
+        <button onClick={() => setActiveTab('orders')} className={`text-[10px] font-black uppercase tracking-widest px-6 md:px-8 py-3 rounded-xl md:rounded-2xl transition-all whitespace-nowrap ${activeTab === 'orders' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900'}`}>{isHeadChef ? 'Recent Operations' : 'My Requests'}</button>
         <button onClick={() => setActiveTab('alerts')} className={`text-[10px] font-black uppercase tracking-widest px-6 md:px-8 py-3 rounded-xl md:rounded-2xl transition-all whitespace-nowrap ${activeTab === 'alerts' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900'}`}>
           Inbox {unreadCount > 0 && <span className="ml-2 bg-amber-500 text-white text-[9px] px-2 py-0.5 rounded-full animate-pulse">{unreadCount}</span>}
         </button>
@@ -172,12 +194,17 @@ const Account: React.FC<AccountProps> = ({
 
       {activeTab === 'orders' && (
         <div className="space-y-8 md:space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {activeOrders.length > 0 ? activeOrders.map(order => (
-            <div key={order.id} id={order.id} className={`bg-white dark:bg-slate-900 border p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] shadow-sm transition-all duration-700 ${order.status === OrderStatus.APPROVED ? 'border-emerald-500 dark:border-emerald-600 shadow-2xl ring-4 ring-emerald-500/10' : 'border-slate-100 dark:border-slate-800'}`}>
+          {sortedOrders.length > 0 ? sortedOrders.map(order => (
+            <div key={order.id} id={order.id} className={`bg-white dark:bg-slate-900 border p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] shadow-sm transition-all duration-700 ${
+              order.status === OrderStatus.APPROVED ? 'border-emerald-500 dark:border-emerald-600 shadow-2xl ring-4 ring-emerald-500/10' : 
+              order.status === OrderStatus.REJECTED ? 'border-rose-100 dark:border-rose-900/50 opacity-90' :
+              'border-slate-100 dark:border-slate-800'
+            }`}>
               <div className="flex flex-col sm:flex-row justify-between gap-6 md:gap-8 mb-8 md:mb-10 border-b border-slate-50 dark:border-slate-800 pb-8">
                 <div>
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Batch Identifier</p>
                   <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white uppercase">{order.id}</h3>
+                  <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">{new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
                 <div className="flex flex-col sm:items-end gap-3">
                   {order.status === OrderStatus.PENDING ? (
@@ -185,10 +212,20 @@ const Account: React.FC<AccountProps> = ({
                       <Clock className="w-4 h-4 animate-spin" />
                       <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Verification</span>
                     </div>
-                  ) : (
+                  ) : order.status === OrderStatus.APPROVED ? (
                     <div className="flex items-center gap-3 px-5 md:px-6 py-2 md:py-2.5 bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-400 rounded-2xl border border-emerald-200 dark:border-emerald-800 animate-in zoom-in-95">
                       <CheckCircle className="w-5 h-5" />
                       <span className="text-[10px] font-black uppercase tracking-widest">Chef Verified - Proceed to Pay</span>
+                    </div>
+                  ) : order.status === OrderStatus.PAID ? (
+                    <div className="flex items-center gap-3 px-5 md:px-6 py-2 md:py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl border border-slate-800 dark:border-slate-100 shadow-lg">
+                      <Package className="w-5 h-5" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">In Preparation</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 px-5 md:px-6 py-2 md:py-2.5 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 rounded-2xl border border-rose-100 dark:border-rose-900/50">
+                      <XCircle className="w-5 h-5" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Batch Unavailable</span>
                     </div>
                   )}
                 </div>
@@ -207,10 +244,12 @@ const Account: React.FC<AccountProps> = ({
                   </div>
                 </div>
                 {order.adminNote && (
-                  <div className="p-6 md:p-8 bg-emerald-50 dark:bg-emerald-950/20 rounded-[1.5rem] md:rounded-[2.5rem] border border-emerald-100 dark:border-emerald-900/50 flex gap-4 md:gap-6 relative overflow-hidden">
-                    <MessageCircle className="w-6 h-6 text-emerald-700 dark:text-emerald-400 shrink-0 mt-1" />
+                  <div className={`p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border flex gap-4 md:gap-6 relative overflow-hidden ${
+                    order.status === OrderStatus.REJECTED ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/50' : 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/50'
+                  }`}>
+                    <MessageCircle className={`w-6 h-6 shrink-0 mt-1 ${order.status === OrderStatus.REJECTED ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`} />
                     <div>
-                      <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest mb-2">Kitchen Dispatch Note</p>
+                      <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${order.status === OrderStatus.REJECTED ? 'text-rose-800 dark:text-rose-400' : 'text-emerald-800 dark:text-emerald-400'}`}>Kitchen Dispatch Note</p>
                       <p className="text-[13px] font-medium text-slate-700 dark:text-slate-300 leading-relaxed italic">"{order.adminNote}"</p>
                     </div>
                   </div>
@@ -223,17 +262,21 @@ const Account: React.FC<AccountProps> = ({
                   <p className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">${order.total.toFixed(2)}</p>
                 </div>
 
-                {order.status === OrderStatus.APPROVED ? (
+                {order.status === OrderStatus.APPROVED && !isHeadChef ? (
                   <button 
                     onClick={() => setProcessingOrderId(order.id)} 
-                    className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 bg-emerald-800 text-white rounded-xl md:rounded-2xl text-[11px] md:text-[12px] font-black uppercase tracking-[0.2em] hover:bg-emerald-900 transition-all shadow-2xl animate-pulse ring-4 ring-emerald-500/30 active:scale-95 flex items-center justify-center"
+                    className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 bg-emerald-800 text-white rounded-xl md:rounded-2xl text-[11px] md:text-[12px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] hover:bg-emerald-900 transition-all shadow-2xl animate-pulse ring-4 ring-emerald-500/30 active:scale-95 flex items-center justify-center"
                   >
                     <CreditCard className="w-5 h-5 mr-3" /> 
                     Authorize Secure Payment
                   </button>
+                ) : order.status === OrderStatus.PAID ? (
+                  <div className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 rounded-xl md:rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 dark:border-emerald-900 flex items-center justify-center gap-3">
+                    <CheckCircle className="w-4 h-4" /> Batch Paid & Secured
+                  </div>
                 ) : (
                   <div className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl md:rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-100 dark:border-slate-700 flex items-center justify-center gap-3 opacity-60 grayscale">
-                    <Lock className="w-4 h-4" /> Locked Until Verified
+                    <Lock className="w-4 h-4" /> Locked Status
                   </div>
                 )}
               </div>
@@ -241,7 +284,7 @@ const Account: React.FC<AccountProps> = ({
           )) : (
             <div className="py-20 md:py-24 text-center border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[3rem] md:rounded-[4rem]">
               <ShoppingBag className="w-12 h-12 md:w-16 md:h-16 text-slate-100 dark:text-slate-800 mx-auto mb-6" />
-              <p className="text-slate-400 font-black uppercase text-xs tracking-[0.3em] px-4">No Culinary Requests Found.</p>
+              <p className="text-slate-400 font-black uppercase text-xs tracking-[0.3em] px-4">No culinary operations found.</p>
             </div>
           )}
         </div>
@@ -279,22 +322,22 @@ const Account: React.FC<AccountProps> = ({
            <div className="bg-white dark:bg-slate-900 rounded-[2rem] md:rounded-[3.5rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
               <div className="flex flex-col md:flex-row border-b border-slate-50 dark:border-slate-800">
                 <div className="w-full md:w-80 bg-slate-50/50 dark:bg-slate-950/50 p-8 md:p-12 flex flex-col items-center border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800">
-                  <div className="w-24 h-24 md:w-32 md:h-32 bg-emerald-100 dark:bg-emerald-900 rounded-[2rem] md:rounded-[3rem] flex items-center justify-center text-3xl md:text-5xl font-black text-emerald-800 dark:text-emerald-400 border-4 border-white dark:border-slate-800 shadow-xl overflow-hidden mb-6">
+                  <div className={`w-24 h-24 md:w-32 md:h-32 rounded-[2rem] md:rounded-[3rem] flex items-center justify-center text-3xl md:text-5xl font-black border-4 border-white dark:border-slate-800 shadow-xl overflow-hidden mb-6 ${isHeadChef ? 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-400' : 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-400'}`}>
                     {editForm.avatar ? (
                       <img src={editForm.avatar} className="w-full h-full object-cover" alt="Preview" />
                     ) : (
-                      currentUser.name.charAt(0)
+                      isHeadChef ? <ChefHat className="w-10 h-10 md:w-16 md:h-16" /> : currentUser.name.charAt(0)
                     )}
                   </div>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight text-center mb-1">{currentUser.name}</h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{currentUser.role === 'ADMIN' ? 'Head Chef' : 'Artisanal Patron'}</p>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight text-center mb-1">{isHeadChef ? 'Head Chef Portfolio' : currentUser.name}</h3>
+                  <p className={`text-[10px] font-black uppercase tracking-widest text-center ${isHeadChef ? 'text-amber-600' : 'text-slate-400'}`}>{isHeadChef ? 'Master Kitchen Authority' : 'Artisanal Patron'}</p>
                   
                   {!isEditing && (
                     <button 
                       onClick={() => setIsEditing(true)}
                       className="mt-8 w-full flex items-center justify-center gap-2 py-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-95"
                     >
-                      <Edit2 className="w-3.5 h-3.5" /> Modify Portfolio
+                      <Edit2 className="w-3.5 h-3.5" /> Modify Details
                     </button>
                   )}
                   
@@ -312,13 +355,13 @@ const Account: React.FC<AccountProps> = ({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                            <div className="space-y-3">
                               <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                <UserIcon className="w-3 h-3" /> Full Identity
+                                <UserIcon className="w-3 h-3" /> Identity
                               </label>
                               <p className="text-lg font-bold text-slate-900 dark:text-white">{currentUser.name}</p>
                            </div>
                            <div className="space-y-3">
                               <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                <Mail className="w-3 h-3" /> Registered Email
+                                <Mail className="w-3 h-3" /> Contact
                               </label>
                               <p className="text-lg font-bold text-slate-900 dark:text-white">{currentUser.email}</p>
                            </div>
@@ -326,27 +369,40 @@ const Account: React.FC<AccountProps> = ({
                               <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                 <Phone className="w-3 h-3" /> Secure Line
                               </label>
-                              <p className="text-lg font-bold text-slate-900 dark:text-white">{currentUser.phone || 'Not provided'}</p>
+                              <p className="text-lg font-bold text-slate-900 dark:text-white">{currentUser.phone || 'Not linked'}</p>
                            </div>
                            <div className="space-y-3">
                               <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                <Lock className="w-3 h-3" /> Access Role
+                                <Lock className="w-3 h-3" /> Portfolio Access
                               </label>
                               <div className="flex items-center gap-2">
-                                <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-emerald-100 dark:border-emerald-900">
-                                  {currentUser.role} Account
+                                <span className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full border ${isHeadChef ? 'bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-400 border-amber-100' : 'bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 border-emerald-100'}`}>
+                                  {currentUser.role} Level
                                 </span>
                               </div>
                            </div>
                         </div>
                         
+                        {isHeadChef && (
+                          <div className="p-8 bg-amber-50/30 dark:bg-amber-950/20 rounded-3xl border border-amber-100 dark:border-amber-900/50 flex flex-col md:flex-row items-center gap-6">
+                             <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-900 flex items-center justify-center text-amber-700 dark:text-amber-400 shrink-0">
+                               <BarChart3 className="w-8 h-8" />
+                             </div>
+                             <div className="flex-grow text-center md:text-left">
+                               <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Kitchen Intelligence</h4>
+                               <p className="text-xs text-slate-500 font-medium">Head Chef credentials authorize complete inventory manipulation and batch validation.</p>
+                             </div>
+                             <Link to="/admin" className="px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all">Launch Console</Link>
+                          </div>
+                        )}
+
                         <div className="p-8 bg-slate-50 dark:bg-slate-950/50 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center gap-6">
-                           <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600">
+                           <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-800 dark:text-emerald-400">
                              <ShieldCheck className="w-6 h-6" />
                            </div>
                            <div>
                              <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Security Handshake</h4>
-                             <p className="text-xs text-slate-500 font-medium">Your portfolio is protected by boutique-grade encryption. Last login from Dhaka, BD.</p>
+                             <p className="text-xs text-slate-500 font-medium">Your portfolio is protected by boutique-grade encryption. Last login from authorized terminal.</p>
                            </div>
                         </div>
                      </div>
@@ -354,7 +410,7 @@ const Account: React.FC<AccountProps> = ({
                      <form onSubmit={handleSaveProfile} className="space-y-8 animate-in fade-in duration-300">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                            <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Patron Identity</label>
+                              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Identity Name</label>
                               <input 
                                 type="text" 
                                 value={editForm.name} 
@@ -364,7 +420,7 @@ const Account: React.FC<AccountProps> = ({
                               />
                            </div>
                            <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Registered Email</label>
+                              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Secure Email</label>
                               <input 
                                 type="email" 
                                 value={editForm.email} 
@@ -374,7 +430,7 @@ const Account: React.FC<AccountProps> = ({
                               />
                            </div>
                            <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Secure Line</label>
                               <input 
                                 type="tel" 
                                 value={editForm.phone} 
@@ -384,12 +440,12 @@ const Account: React.FC<AccountProps> = ({
                               />
                            </div>
                            <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Avatar Source URL</label>
+                              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Avatar Resource URL</label>
                               <input 
                                 type="url" 
                                 value={editForm.avatar} 
                                 onChange={e => setEditForm({...editForm, avatar: e.target.value})}
-                                placeholder="https://images.unsplash.com/..."
+                                placeholder="https://..."
                                 className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-700 transition-all" 
                               />
                            </div>
@@ -402,7 +458,7 @@ const Account: React.FC<AccountProps> = ({
                              className="flex-grow sm:flex-none px-10 py-5 bg-emerald-800 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl hover:bg-emerald-900 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                            >
                              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                             {isSaving ? 'Synchronizing...' : 'Authorize Changes'}
+                             {isSaving ? 'Synchronizing...' : 'Authorize Sync'}
                            </button>
                            <button 
                              type="button"
@@ -423,7 +479,7 @@ const Account: React.FC<AccountProps> = ({
       {processingOrderId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => !isPaying && setProcessingOrderId(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden">
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden border border-slate-100 dark:border-slate-800">
             <div className="text-center mb-8 md:mb-10">
               <div className="w-16 h-16 md:w-20 md:h-20 bg-emerald-50 dark:bg-emerald-950/50 rounded-[2rem] md:rounded-[2.5rem] flex items-center justify-center text-emerald-800 dark:text-emerald-400 mx-auto mb-6 border border-emerald-100 dark:border-emerald-900">
                 <ShieldCheck className="w-8 h-8 md:w-10 md:h-10" />

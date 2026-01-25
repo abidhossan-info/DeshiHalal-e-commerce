@@ -30,14 +30,14 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
           setCurrentUser(MOCK_ADMIN);
           navigate('/admin');
         } else {
-          setError('Invalid Admin Credentials (admin/admin)');
+          setError('Invalid Credentials for Head Chef (admin/admin)');
         }
       } else {
         if (username === 'user' && password === 'user') {
           setCurrentUser(MOCK_USER);
           navigate('/');
         } else {
-          setError('Invalid User Credentials (user/user)');
+          setError('Invalid Credentials for Patron (user/user)');
         }
       }
       setIsLoading(false);
@@ -84,15 +84,15 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
           <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[2rem] mb-10 border border-slate-200 dark:border-slate-800 shadow-inner animate-in fade-in duration-500">
             <button 
               onClick={() => { setAuthMode('PATRON'); setError(''); }}
-              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black tracking-widest uppercase transition-all ${authMode === 'PATRON' ? 'bg-white dark:bg-slate-800 text-emerald-800 dark:text-emerald-400 shadow-xl' : 'text-slate-500'}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black tracking-widest uppercase transition-all ${authMode === 'PATRON' ? 'bg-white dark:bg-slate-800 text-emerald-800 dark:text-emerald-400 shadow-xl' : 'text-slate-50'}`}
             >
-              <Users className="w-4 h-4" /> Patron Portal
+              <Users className="w-4 h-4" /> Patron Entry
             </button>
             <button 
               onClick={() => { setAuthMode('ADMIN'); setError(''); }}
               className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black tracking-widest uppercase transition-all ${authMode === 'ADMIN' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-500 shadow-xl' : 'text-slate-500'}`}
             >
-              <ChefHat className="w-4 h-4" /> Kitchen Access
+              <ChefHat className="w-4 h-4" /> Head Chef
             </button>
           </div>
         )}
@@ -104,15 +104,19 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 transition-colors ${authMode === 'ADMIN' ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700' : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-400'}`}>
                   <ShieldCheck className="w-8 h-8" />
                 </div>
-                <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Authorized Entry</h2>
-                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">Boutique Portfolio Access</p>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                  {authMode === 'ADMIN' ? 'Chef Authorization' : 'Authorized Entry'}
+                </h2>
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">
+                  {authMode === 'ADMIN' ? 'Kitchen Management Portal' : 'Boutique Portfolio Access'}
+                </p>
               </div>
 
               {error && <div className="mb-8 p-4 bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-rose-100 dark:border-rose-900 animate-pulse">{error}</div>}
 
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Username</label>
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Identifier</label>
                   <div className="relative group">
                     <Users className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
                     <input 
@@ -128,7 +132,7 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-end mb-1 px-1">
-                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Password</label>
+                    <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Secret Key</label>
                     <button 
                       type="button"
                       onClick={() => setIsResetMode(true)}
