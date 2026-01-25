@@ -1,47 +1,87 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Lock, ChefHat, Users, ShieldCheck, Activity, 
-  Chrome, Facebook, Fingerprint, Sparkles, Mail, ArrowLeft, MailOpen
+  Chrome, Facebook, Fingerprint, Sparkles, Mail, ArrowLeft, MailOpen, UserPlus, Phone
 } from 'lucide-react';
 import { MOCK_ADMIN, MOCK_USER } from '../constants';
 import { User as UserType, UserRole } from '../types';
 
 const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCurrentUser }) => {
-  const [authMode, setAuthMode] = useState<'PATRON' | 'ADMIN'>('PATRON');
-  const [isResetMode, setIsResetMode] = useState(false);
+  const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP' | 'RESET'>('LOGIN');
+  const [userType, setUserType] = useState<'PATRON' | 'ADMIN'>('PATRON');
+  
+  // Form States
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [resetEmail, setResetEmail] = useState('');
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
+  
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Simple local user persistence for demo purposes
+  const getRegisteredUsers = (): UserType[] => {
+    const saved = localStorage.getItem('dh_registered_users');
+    return saved ? JSON.parse(saved) : [MOCK_USER];
+  };
+
+  const saveUser = (newUser: UserType) => {
+    const users = getRegisteredUsers();
+    localStorage.setItem('dh_registered_users', JSON.stringify([...users, newUser]));
+  };
+
+  const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     setTimeout(() => {
-      if (authMode === 'ADMIN') {
-        if (username === 'admin' && password === 'admin') {
-          setCurrentUser(MOCK_ADMIN);
-          navigate('/admin');
+      if (authMode === 'LOGIN') {
+        if (userType === 'ADMIN') {
+          if (username === 'admin' && password === 'admin') {
+            setCurrentUser(MOCK_ADMIN);
+            navigate('/admin');
+          } else {
+            setError('Invalid Credentials for Head Chef (admin/admin)');
+          }
         } else {
-          setError('Invalid Credentials for Head Chef (admin/admin)');
+          // Check against "database"
+          const users = getRegisteredUsers();
+          const foundUser = users.find(u => (u.email === username || u.name === username) && password === 'user');
+          
+          // Fallback for mock user if not in list
+          if (username === 'user' && password === 'user') {
+            setCurrentUser(MOCK_USER);
+            navigate('/');
+          } else if (foundUser) {
+            setCurrentUser(foundUser);
+            navigate('/');
+          } else {
+            setError('Invalid Credentials. Use "user/user" or register a new account.');
+          }
         }
-      } else {
-        if (username === 'user' && password === 'user') {
-          setCurrentUser(MOCK_USER);
-          navigate('/');
-        } else {
-          setError('Invalid Credentials for Patron (user/user)');
-        }
+      } else if (authMode === 'SIGNUP') {
+        // Registering a new Patron
+        const newUser: UserType = {
+          id: `U-${Date.now()}`,
+          name: fullName,
+          email: email,
+          phone: phone,
+          role: UserRole.CUSTOMER, // HARDCODED: Registration only creates Customers
+          avatar: undefined
+        };
+        saveUser(newUser);
+        setCurrentUser(newUser);
+        navigate('/');
       }
       setIsLoading(false);
-    }, 800);
+    }, 1000);
   };
 
   const handleResetPassword = (e: React.FormEvent) => {
@@ -49,15 +89,12 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
     setIsLoading(true);
     setError('');
 
-    // Simulate sending a reset link
     setTimeout(() => {
       setResetSuccess(true);
       setIsLoading(false);
-      // Auto-revert to login after 3 seconds
       setTimeout(() => {
-        setIsResetMode(false);
+        setAuthMode('LOGIN');
         setResetSuccess(false);
-        setResetEmail('');
       }, 3000);
     }, 1200);
   };
@@ -78,19 +115,21 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-white dark:bg-slate-950 transition-colors duration-500">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-white dark:bg-slate-950 transition-colors duration-500">
       <div className="max-w-md w-full">
-        {!isResetMode && (
+        
+        {/* Auth Mode Toggle */}
+        {authMode === 'LOGIN' && (
           <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[2rem] mb-10 border border-slate-200 dark:border-slate-800 shadow-inner animate-in fade-in duration-500">
             <button 
-              onClick={() => { setAuthMode('PATRON'); setError(''); }}
-              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black tracking-widest uppercase transition-all ${authMode === 'PATRON' ? 'bg-white dark:bg-slate-800 text-emerald-800 dark:text-emerald-400 shadow-xl' : 'text-slate-50'}`}
+              onClick={() => { setUserType('PATRON'); setError(''); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black tracking-widest uppercase transition-all ${userType === 'PATRON' ? 'bg-white dark:bg-slate-800 text-emerald-800 dark:text-emerald-400 shadow-xl' : 'text-slate-500'}`}
             >
               <Users className="w-4 h-4" /> Patron Entry
             </button>
             <button 
-              onClick={() => { setAuthMode('ADMIN'); setError(''); }}
-              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black tracking-widest uppercase transition-all ${authMode === 'ADMIN' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-500 shadow-xl' : 'text-slate-500'}`}
+              onClick={() => { setUserType('ADMIN'); setError(''); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-[10px] font-black tracking-widest uppercase transition-all ${userType === 'ADMIN' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-500 shadow-xl' : 'text-slate-500'}`}
             >
               <ChefHat className="w-4 h-4" /> Head Chef
             </button>
@@ -98,23 +137,24 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
         )}
 
         <div className="bg-white dark:bg-slate-900 p-10 rounded-[3rem] shadow-2xl border border-slate-50 dark:border-slate-800 relative overflow-hidden transition-all duration-500">
-          {!isResetMode ? (
+          
+          {authMode === 'LOGIN' && (
             <>
               <div className="text-center mb-10">
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 transition-colors ${authMode === 'ADMIN' ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700' : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-400'}`}>
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 transition-colors ${userType === 'ADMIN' ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700' : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-400'}`}>
                   <ShieldCheck className="w-8 h-8" />
                 </div>
                 <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                  {authMode === 'ADMIN' ? 'Chef Authorization' : 'Authorized Entry'}
+                  {userType === 'ADMIN' ? 'Chef Authorization' : 'Authorized Entry'}
                 </h2>
                 <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">
-                  {authMode === 'ADMIN' ? 'Kitchen Management Portal' : 'Boutique Portfolio Access'}
+                  {userType === 'ADMIN' ? 'Kitchen Management Portal' : 'Boutique Portfolio Access'}
                 </p>
               </div>
 
               {error && <div className="mb-8 p-4 bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-rose-100 dark:border-rose-900 animate-pulse">{error}</div>}
 
-              <form onSubmit={handleLogin} className="space-y-6">
+              <form onSubmit={handleAuth} className="space-y-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Identifier</label>
                   <div className="relative group">
@@ -123,7 +163,7 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
                       type="text" 
                       value={username} 
                       onChange={e => setUsername(e.target.value)}
-                      placeholder={authMode === 'ADMIN' ? 'admin' : 'user'}
+                      placeholder={userType === 'ADMIN' ? 'admin' : 'Email or Username'}
                       className="w-full pl-14 pr-6 py-4.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 dark:focus:ring-emerald-500 outline-none transition-all"
                       required 
                     />
@@ -135,7 +175,7 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
                     <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Secret Key</label>
                     <button 
                       type="button"
-                      onClick={() => setIsResetMode(true)}
+                      onClick={() => setAuthMode('RESET')}
                       className="text-[9px] font-black text-emerald-700 dark:text-emerald-500 uppercase tracking-widest hover:underline"
                     >
                       Forgot?
@@ -156,14 +196,14 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
 
                 <button 
                   disabled={isLoading}
-                  className={`w-full py-5 rounded-2xl font-black text-[11px] tracking-[0.3em] uppercase transition-all shadow-xl active:scale-95 flex items-center justify-center gap-4 ${authMode === 'ADMIN' ? 'bg-slate-900 dark:bg-amber-700 text-white' : 'bg-emerald-800 text-white hover:bg-emerald-900'}`}
+                  className={`w-full py-5 rounded-2xl font-black text-[11px] tracking-[0.3em] uppercase transition-all shadow-xl active:scale-95 flex items-center justify-center gap-4 ${userType === 'ADMIN' ? 'bg-slate-900 dark:bg-amber-700 text-white' : 'bg-emerald-800 text-white hover:bg-emerald-900'}`}
                 >
                   {isLoading ? <Activity className="w-5 h-5 animate-spin" /> : <Fingerprint className="w-5 h-5" />}
                   {isLoading ? 'Verifying...' : 'Unlock Entry'}
                 </button>
               </form>
 
-              {authMode === 'PATRON' && (
+              {userType === 'PATRON' && (
                 <div className="mt-10 animate-in slide-in-from-bottom-2 duration-500">
                   <div className="flex items-center gap-4 mb-8">
                     <div className="h-px flex-grow bg-slate-100 dark:bg-slate-800"></div>
@@ -180,10 +220,108 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
                       <span className="text-[9px] font-black uppercase">Facebook</span>
                     </button>
                   </div>
+
+                  <div className="mt-10 text-center">
+                    <button 
+                      onClick={() => setAuthMode('SIGNUP')}
+                      className="text-emerald-800 dark:text-emerald-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 mx-auto hover:gap-3 transition-all"
+                    >
+                      <Sparkles className="w-3 h-3" /> Create New Portfolio
+                    </button>
+                  </div>
                 </div>
               )}
             </>
-          ) : (
+          )}
+
+          {authMode === 'SIGNUP' && (
+            <div className="animate-in slide-in-from-right-4 duration-500">
+               <div className="text-center mb-10">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-400 flex items-center justify-center mx-auto mb-6">
+                  <UserPlus className="w-8 h-8" />
+                </div>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">New Patron</h2>
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mt-2">Join the artisanal boutique</p>
+              </div>
+
+              <form onSubmit={handleAuth} className="space-y-5">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                  <div className="relative group">
+                    <Users className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
+                    <input 
+                      type="text" 
+                      value={fullName}
+                      onChange={e => setFullName(e.target.value)}
+                      placeholder="Sameer Khan"
+                      className="w-full pl-14 pr-6 py-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Secure Email</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
+                    <input 
+                      type="email" 
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="patron@deshi.com"
+                      className="w-full pl-14 pr-6 py-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone (Optional)</label>
+                  <div className="relative group">
+                    <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
+                    <input 
+                      type="tel" 
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="+880..."
+                      className="w-full pl-14 pr-6 py-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Secure Key</label>
+                  <div className="relative group">
+                    <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
+                    <input 
+                      type="password" 
+                      placeholder="Create a password"
+                      className="w-full pl-14 pr-6 py-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  disabled={isLoading}
+                  className="w-full py-5 bg-emerald-800 text-white rounded-2xl font-black text-[11px] tracking-[0.3em] uppercase transition-all shadow-xl active:scale-95 flex items-center justify-center gap-4 hover:bg-emerald-900 mt-4"
+                >
+                  {isLoading ? <Activity className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                  {isLoading ? 'Creating Portfolio...' : 'Authorized Signup'}
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={() => setAuthMode('LOGIN')}
+                  className="w-full flex items-center justify-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 dark:hover:text-white transition-colors mt-4"
+                >
+                  <ArrowLeft className="w-3 h-3" /> Already a Patron? Log In
+                </button>
+              </form>
+            </div>
+          )}
+
+          {authMode === 'RESET' && (
             <div className="animate-in zoom-in-95 duration-300">
               <div className="text-center mb-10">
                 <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-400 flex items-center justify-center mx-auto mb-6">
@@ -210,8 +348,6 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
                       <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
                       <input 
                         type="email" 
-                        value={resetEmail} 
-                        onChange={e => setResetEmail(e.target.value)}
                         placeholder="patron@boutique.com"
                         className="w-full pl-14 pr-6 py-4.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 dark:focus:ring-emerald-500 outline-none transition-all"
                         required 
@@ -232,21 +368,13 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
 
                   <button 
                     type="button"
-                    onClick={() => setIsResetMode(false)}
+                    onClick={() => setAuthMode('LOGIN')}
                     className="w-full flex items-center justify-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 dark:hover:text-white transition-colors"
                   >
                     <ArrowLeft className="w-3 h-3" /> Back to Entry
                   </button>
                 </form>
               )}
-            </div>
-          )}
-
-          {!isResetMode && (
-            <div className="mt-10 text-center">
-               <button className="text-emerald-800 dark:text-emerald-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 mx-auto hover:gap-3 transition-all">
-                 <Sparkles className="w-3 h-3" /> Create New Portfolio
-               </button>
             </div>
           )}
         </div>
