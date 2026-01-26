@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
 import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat } from 'lucide-react';
-import { Product, Order, OrderStatus, UserRole, User as UserType, CartItem, Notification, Review } from './types';
-import { INITIAL_PRODUCTS, MOCK_ADMIN, MOCK_USER, MOCK_GUEST } from './constants';
+import { Product, Order, OrderStatus, UserRole, User as UserType, CartItem, Notification, Review, Testimonial } from './types';
+import { INITIAL_PRODUCTS, MOCK_ADMIN, MOCK_USER, MOCK_GUEST, INITIAL_TESTIMONIALS } from './constants';
 
 // --- Pages ---
 import Home from './pages/Home';
@@ -21,6 +21,7 @@ const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>(INITIAL_TESTIMONIALS);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -45,17 +46,19 @@ const App: React.FC = () => {
       const savedOrders = localStorage.getItem('dh_orders');
       const savedNotifs = localStorage.getItem('dh_notifications');
       const savedUser = localStorage.getItem('dh_user');
+      const savedTestimonials = localStorage.getItem('dh_testimonials');
       
       if (savedProducts) setProducts(JSON.parse(savedProducts));
       if (savedOrders) setOrders(JSON.parse(savedOrders));
       if (savedNotifs) setNotifications(JSON.parse(savedNotifs));
       if (savedUser) setCurrentUser(JSON.parse(savedUser));
+      if (savedTestimonials) setTestimonials(JSON.parse(savedTestimonials));
     };
 
     loadState();
     
     const handleStorageChange = (e: StorageEvent) => {
-      if (['dh_orders', 'dh_notifications', 'dh_user', 'dh_products'].includes(e.key || '')) {
+      if (['dh_orders', 'dh_notifications', 'dh_user', 'dh_products', 'dh_testimonials'].includes(e.key || '')) {
         loadState();
       }
     };
@@ -67,12 +70,13 @@ const App: React.FC = () => {
     localStorage.setItem('dh_products', JSON.stringify(products));
     localStorage.setItem('dh_orders', JSON.stringify(orders));
     localStorage.setItem('dh_notifications', JSON.stringify(notifications));
+    localStorage.setItem('dh_testimonials', JSON.stringify(testimonials));
     if (currentUser) {
       localStorage.setItem('dh_user', JSON.stringify(currentUser));
     } else {
       localStorage.removeItem('dh_user');
     }
-  }, [products, orders, notifications, currentUser]);
+  }, [products, orders, notifications, currentUser, testimonials]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -290,12 +294,12 @@ const App: React.FC = () => {
 
       <main className="flex-grow">
         <Routes>
-          <Route path="/" element={<Home products={products} addToCart={addToCart} />} />
+          <Route path="/" element={<Home products={products} addToCart={addToCart} testimonials={testimonials} />} />
           <Route path="/shop" element={<Shop products={products} addToCart={addToCart} />} />
           <Route path="/monday-menu" element={<MondayMenu products={products.filter(p => p.isMondaySpecial)} addToCart={addToCart} />} />
           <Route path="/cart" element={<CartPage cart={cart} removeFromCart={removeFromCart} updateQuantity={updateCartQuantity} requestOrder={requestOrder} clearCart={clearCart} currentUser={currentUser} />} />
           <Route path="/account" element={<Account currentUser={currentUser} orders={orders.filter(o => o.userId === currentUser?.id)} notifications={notifications.filter(n => n.userId === currentUser?.id)} markRead={markNotificationRead} updateStatus={updateOrderStatus} setCurrentUser={setCurrentUser} updateCurrentUser={updateCurrentUser} />} />
-          <Route path="/admin" element={<AdminDashboard orders={orders} updateStatus={updateOrderStatus} currentUser={currentUser} products={products} setProducts={setProducts} />} />
+          <Route path="/admin" element={<AdminDashboard orders={orders} updateStatus={updateOrderStatus} currentUser={currentUser} products={products} setProducts={setProducts} testimonials={testimonials} setTestimonials={setTestimonials} />} />
           <Route path="/login" element={<LoginPage setCurrentUser={setCurrentUser} />} />
           <Route path="/product/:id" element={<ProductDetails products={products} addToCart={addToCart} reviews={reviews} addReview={() => {}} currentUser={currentUser} orders={orders} />} />
         </Routes>

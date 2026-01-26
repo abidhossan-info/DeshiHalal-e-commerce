@@ -1,5 +1,5 @@
 
-import { Product, UserRole, User, StockStatus } from './types';
+import { Product, UserRole, User, StockStatus, Testimonial } from './types';
 
 export const INITIAL_PRODUCTS: Product[] = [
   // SWEETS
@@ -94,6 +94,12 @@ export const INITIAL_PRODUCTS: Product[] = [
     isNew: true,
     stockStatus: StockStatus.IN_STOCK
   }
+];
+
+export const INITIAL_TESTIMONIALS: Testimonial[] = [
+  { id: "t1", name: "Rafiqul Islam", role: "Regular Customer", text: "The Mutton Kacchi here is better than what I've had in Dhaka. The approval system is great because I know it's always fresh.", createdAt: new Date().toISOString() },
+  { id: "t2", name: "Sarah Ahmed", role: "Sweet Lover", text: "Their Rasgulla is simply out of this world. Soft, spongy, and perfectly sweet. I order for every family gathering!", createdAt: new Date().toISOString() },
+  { id: "t3", name: "Imran Chowdhury", role: "Snack Enthusiast", text: "Best snacks for our office tea parties. The Tikka skewers are incredibly juicy. Highly recommend the Monday Special!", createdAt: new Date().toISOString() }
 ];
 
 export const MOCK_ADMIN: User = {

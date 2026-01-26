@@ -1,10 +1,10 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Order, OrderStatus, UserRole, User as UserType, Product, StockStatus } from '../types';
+import { Order, OrderStatus, UserRole, User as UserType, Product, StockStatus, Testimonial } from '../types';
 import { 
   X, ShieldCheck, ChevronRight, MessageCircle, 
   LayoutDashboard, Package, BarChart3, Settings, Save, AlertTriangle, 
-  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat, Phone, Mail, MapPin, Send, Loader2
+  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat, Phone, Mail, MapPin, Send, Loader2, Heart, Trash2
 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 
@@ -14,17 +14,26 @@ interface AdminDashboardProps {
   currentUser: UserType | null;
   products: Product[];
   setProducts: (p: Product[]) => void;
+  testimonials: Testimonial[];
+  setTestimonials: (t: Testimonial[]) => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, currentUser, products, setProducts }) => {
-  // 1. State Management - Using terminology requested by user
-  const [activeTab, setActiveTab] = useState<'batches' | 'inventory' | 'metrics'>('batches');
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, currentUser, products, setProducts, testimonials, setTestimonials }) => {
+  // 1. State Management
+  const [activeTab, setActiveTab] = useState<'batches' | 'inventory' | 'testimonials' | 'metrics'>('batches');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [isAddingTestimonial, setIsAddingTestimonial] = useState(false);
   const [adminNote, setAdminNote] = useState('');
   const [isProcessingApproval, setIsProcessingApproval] = useState(false);
   
+  const [newTestimonial, setNewTestimonial] = useState<Omit<Testimonial, 'id' | 'createdAt'>>({
+    name: '',
+    role: 'Patron',
+    text: ''
+  });
+
   // Dynamic Category state
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -86,6 +95,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
     setProducts([{ ...newProduct, id }, ...products]);
     setIsAddingProduct(false);
     resetNewProductForm();
+  };
+
+  const createTestimonial = (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = `TEST-${Date.now()}`;
+    const entry: Testimonial = { ...newTestimonial, id, createdAt: new Date().toISOString() };
+    setTestimonials([entry, ...testimonials]);
+    setIsAddingTestimonial(false);
+    setNewTestimonial({ name: '', role: 'Patron', text: '' });
+  };
+
+  const deleteTestimonial = (id: string) => {
+    setTestimonials(testimonials.filter(t => t.id !== id));
   };
 
   const resetNewProductForm = () => {
@@ -157,10 +179,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
           </div>
         </div>
         
-        <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 w-full lg:w-auto">
-          <button onClick={() => setActiveTab('batches')} className={`flex-1 lg:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'batches' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Batches</button>
-          <button onClick={() => setActiveTab('inventory')} className={`flex-1 lg:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'inventory' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Inventory</button>
-          <button onClick={() => setActiveTab('metrics')} className={`flex-1 lg:flex-none px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'metrics' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Metrics</button>
+        <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 w-full lg:w-auto overflow-x-auto no-scrollbar">
+          <button onClick={() => setActiveTab('batches')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'batches' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Batches</button>
+          <button onClick={() => setActiveTab('inventory')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'inventory' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Inventory</button>
+          <button onClick={() => setActiveTab('testimonials')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'testimonials' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Testimonials</button>
+          <button onClick={() => setActiveTab('metrics')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'metrics' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Metrics</button>
         </div>
       </div>
 
@@ -257,11 +280,100 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
         </div>
       )}
 
+      {activeTab === 'testimonials' && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+             <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Patron Accolades</h2>
+             <button 
+              onClick={() => setIsAddingTestimonial(true)}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all active:scale-95 shadow-xl shadow-rose-900/20"
+             >
+               <Plus className="w-4 h-4" /> Feature New Story
+             </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {testimonials.map(t => (
+              <div key={t.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2rem] shadow-sm relative group hover:border-rose-200 transition-all">
+                <button 
+                  onClick={() => deleteTestimonial(t.id)}
+                  className="absolute top-6 right-6 p-2 text-slate-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <MessageCircle className="w-8 h-8 text-rose-100 dark:text-slate-800 mb-6" />
+                <p className="text-slate-600 dark:text-slate-400 italic text-sm mb-8 leading-relaxed">"{t.text}"</p>
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 font-black uppercase">{t.name.charAt(0)}</div>
+                   <div>
+                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">{t.name}</h4>
+                     <p className="text-[9px] text-rose-600 dark:text-rose-400 font-black uppercase tracking-widest">{t.role}</p>
+                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'metrics' && (
         <div className="py-32 text-center border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[4rem] animate-in zoom-in-95 duration-500">
           <BarChart3 className="w-20 h-20 text-slate-200 dark:text-slate-800 mx-auto mb-6" />
           <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">Kitchen Intelligence</h3>
           <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Compiling current kitchen metrics...</p>
+        </div>
+      )}
+
+      {/* Testimonial Modal */}
+      {isAddingTestimonial && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setIsAddingTestimonial(false)}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-10 md:p-12 shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800">
+             <div className="flex justify-between items-center mb-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-lg shadow-rose-900/20">
+                    <Heart className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Feature Feedback</h3>
+                </div>
+                <button onClick={() => setIsAddingTestimonial(false)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><X /></button>
+             </div>
+
+             <form onSubmit={createTestimonial} className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Patron Name</label>
+                    <input 
+                      type="text" 
+                      value={newTestimonial.name}
+                      onChange={e => setNewTestimonial({...newTestimonial, name: e.target.value})}
+                      className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-600/10 transition-all"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Context / Role</label>
+                    <input 
+                      type="text" 
+                      value={newTestimonial.role}
+                      onChange={e => setNewTestimonial({...newTestimonial, role: e.target.value})}
+                      className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-600/10 transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Patron Story</label>
+                  <textarea 
+                    value={newTestimonial.text}
+                    onChange={e => setNewTestimonial({...newTestimonial, text: e.target.value})}
+                    className="w-full p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-600/10 h-32 resize-none transition-all"
+                    required
+                  />
+                </div>
+                <button type="submit" className="w-full py-5 bg-rose-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-xl active:scale-95 shadow-rose-900/20">Authorize Publication</button>
+             </form>
+          </div>
         </div>
       )}
 

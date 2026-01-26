@@ -3,14 +3,15 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, UtensilsCrossed, Sparkles, Star, ArrowRight, Truck, Heart, Quote, User, Clock } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
-import { Product } from '../types';
+import { Product, Testimonial } from '../types';
 
 interface HomeProps {
   products: Product[];
   addToCart: (p: Product) => void;
+  testimonials: Testimonial[];
 }
 
-const Home: React.FC<HomeProps> = ({ products, addToCart }) => {
+const Home: React.FC<HomeProps> = ({ products, addToCart, testimonials }) => {
   const featured = products.filter(p => p.isNew).slice(0, 4);
 
   return (
@@ -128,15 +129,11 @@ const Home: React.FC<HomeProps> = ({ products, addToCart }) => {
           <h2 className="text-4xl font-black text-slate-950 dark:text-slate-100 mb-16 uppercase">What People Are Saying</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { name: "Rafiqul Islam", role: "Regular Customer", text: "The Mutton Kacchi here is better than what I've had in Dhaka. The approval system is great because I know it's always fresh." },
-              { name: "Sarah Ahmed", role: "Sweet Lover", text: "Their Rasgulla is simply out of this world. Soft, spongy, and perfectly sweet. I order for every family gathering!" },
-              { name: "Imran Chowdhury", role: "Snack Enthusiast", text: "Best snacks for our office tea parties. The Tikka skewers are incredibly juicy. Highly recommend the Monday Special!" }
-            ].map((t, idx) => (
-              <div key={idx} className="bg-white dark:bg-slate-900 p-10 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl dark:hover:shadow-emerald-950/20 transition-all group">
+            {testimonials.map((t) => (
+              <div key={t.id} className="bg-white dark:bg-slate-900 p-10 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl dark:hover:shadow-emerald-950/20 transition-all group text-left">
                 <Quote className="w-10 h-10 text-emerald-100 dark:text-slate-800 mb-8 group-hover:text-emerald-200 dark:group-hover:text-emerald-800 transition-colors" />
                 <p className="text-slate-800 dark:text-slate-300 italic text-sm leading-relaxed mb-8 font-medium">"{t.text}"</p>
-                <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
                     <User className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                   </div>

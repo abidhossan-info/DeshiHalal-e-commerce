@@ -28,6 +28,14 @@ export interface Review {
   createdAt: string;
 }
 
+export interface Testimonial {
+  id: string;
+  name: string;
+  role: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
