@@ -348,8 +348,8 @@ const App: React.FC = () => {
             onClick={() => setIsMobileMenuOpen(false)}
           ></div>
           
-          {/* Menu Panel */}
-          <div className="absolute top-0 left-0 bottom-0 w-[80%] max-w-sm bg-white dark:bg-slate-900 shadow-2xl animate-in slide-in-from-left duration-500 flex flex-col">
+          {/* Menu Panel - Positioned to the Right */}
+          <div className="absolute top-0 right-0 bottom-0 w-[80%] max-w-sm bg-white dark:bg-slate-900 shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col">
             <div className="h-20 px-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
               <Link to="/" className="text-lg font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-tighter">
                 DESHI<span className="text-amber-600">HALAL</span>
