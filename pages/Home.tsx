@@ -15,26 +15,30 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, testimonials }) => {
   const featured = products.filter(p => p.isNew).slice(0, 4);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
 
-  // Responsive items per view
-  const itemsPerView = useMemo(() => {
-    if (typeof window !== 'undefined') {
-      if (window.innerWidth < 768) return 1;
-      if (window.innerWidth < 1024) return 2;
-      return 3;
-    }
-    return 3;
+  // Handle resize for responsive slider items
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const totalSlides = Math.ceil(testimonials.length / itemsPerView);
+  const itemsPerView = useMemo(() => {
+    if (windowWidth < 768) return 1;
+    if (windowWidth < 1024) return 2;
+    return 3;
+  }, [windowWidth]);
+
+  const maxIndex = Math.max(0, testimonials.length - itemsPerView);
 
   const nextSlide = useCallback(() => {
-    setCurrentTestimonialIndex((prev) => (prev + 1) % testimonials.length);
-  }, [testimonials.length]);
+    setCurrentTestimonialIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+  }, [maxIndex]);
 
   const prevSlide = useCallback(() => {
-    setCurrentTestimonialIndex((prev) => (prev - 1 + testimonials.length) % testimonials.length);
-  }, [testimonials.length]);
+    setCurrentTestimonialIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
+  }, [maxIndex]);
 
   useEffect(() => {
     if (isHovered) return;
@@ -45,7 +49,7 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, testimonials }) => {
   return (
     <div className="pb-24">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-emerald-50/30 dark:bg-slate-900/30 py-12 sm:py-20 lg:py-28 transition-colors duration-300">
+      <section className="relative overflow-hidden bg-emerald-50/30 dark:bg-slate-900/30 py-12 sm:py-20 lg:py-28 transition-colors duration-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="text-center lg:text-left">
@@ -61,13 +65,13 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, testimonials }) => {
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Link 
                   to="/shop" 
-                  className="inline-flex items-center justify-center px-10 py-4 rounded-full bg-emerald-800 dark:bg-emerald-700 text-white text-sm font-black tracking-widest hover:bg-emerald-900 dark:hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-200 dark:shadow-none"
+                  className="inline-flex items-center justify-center px-10 py-4 rounded-full bg-emerald-800 dark:bg-emerald-700 text-white text-sm font-black tracking-widest hover:bg-emerald-900 dark:hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-200 dark:shadow-none active:scale-95"
                 >
                   BROWSE MENU
                 </Link>
                 <Link 
                   to="/monday-menu" 
-                  className="inline-flex items-center justify-center px-10 py-4 rounded-full bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-500 text-sm font-black tracking-widest border-2 border-amber-200 dark:border-amber-900 hover:border-amber-600 dark:hover:border-amber-500 transition-all"
+                  className="inline-flex items-center justify-center px-10 py-4 rounded-full bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-500 text-sm font-black tracking-widest border-2 border-amber-200 dark:border-amber-900 hover:border-amber-600 dark:hover:border-amber-500 transition-all active:scale-95"
                 >
                   MONDAY SPECIAL
                 </Link>
@@ -92,7 +96,7 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, testimonials }) => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="flex justify-between items-end mb-12">
           <div>
-            <h2 className="text-3xl font-black text-slate-950 dark:text-slate-100 mb-2 uppercase">New Arrivals</h2>
+            <h2 className="text-3xl font-black text-slate-950 dark:text-slate-100 mb-2 uppercase tracking-tight">New Arrivals</h2>
             <p className="text-slate-600 dark:text-slate-500 uppercase text-[10px] font-black tracking-[0.2em]">Fresh from the kitchen</p>
           </div>
           <Link to="/shop" className="text-emerald-800 dark:text-emerald-500 text-xs font-black flex items-center gap-1 hover:gap-2 transition-all tracking-widest uppercase">
@@ -107,7 +111,7 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, testimonials }) => {
       </section>
 
       {/* About Us Section */}
-      <section id="about" className="bg-slate-50 dark:bg-slate-900/50 py-24 transition-colors duration-300">
+      <section id="about" className="bg-slate-50 dark:bg-slate-900/50 py-24 transition-colors duration-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="relative">
@@ -149,13 +153,13 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, testimonials }) => {
       </section>
 
       {/* Testimonials Slider Section */}
-      <section id="testimonials" className="py-24 overflow-hidden">
+      <section id="testimonials" className="py-24 overflow-hidden bg-white dark:bg-slate-950 transition-colors duration-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-500 text-[10px] font-black uppercase tracking-widest mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-500 text-[10px] font-black uppercase tracking-widest mb-6 border border-rose-100 dark:border-rose-900/50">
               <Heart className="w-3.5 h-3.5 fill-rose-700 dark:fill-rose-500" /> OUR HAPPY PATRONS
             </div>
-            <h2 className="text-4xl font-black text-slate-950 dark:text-slate-100 uppercase mb-4">What People Are Saying</h2>
+            <h2 className="text-4xl font-black text-slate-950 dark:text-slate-100 uppercase mb-4 tracking-tight">What People Are Saying</h2>
             <p className="text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto">Discover the experiences of our valued community members across the PNW region.</p>
           </div>
           
@@ -215,11 +219,11 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, testimonials }) => {
 
             {/* Pagination Dots */}
             <div className="flex justify-center gap-2 mt-12">
-              {Array.from({ length: Math.max(0, testimonials.length - itemsPerView + 1) }).map((_, idx) => (
+              {Array.from({ length: Math.ceil(testimonials.length - itemsPerView + 1) }).map((_, idx) => (
                 <button
                   key={idx}
                   onClick={() => setCurrentTestimonialIndex(idx)}
-                  className={`h-1.5 rounded-full transition-all ${currentTestimonialIndex === idx ? 'w-8 bg-emerald-800' : 'w-2 bg-slate-200 dark:bg-slate-800'}`}
+                  className={`h-1.5 rounded-full transition-all ${currentTestimonialIndex === idx ? 'w-8 bg-emerald-800 dark:bg-emerald-500' : 'w-2 bg-slate-200 dark:bg-slate-800'}`}
                   aria-label={`Go to slide ${idx + 1}`}
                 />
               ))}
@@ -232,8 +236,8 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, testimonials }) => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
         <div className="bg-emerald-900 dark:bg-emerald-950 rounded-[3rem] p-12 sm:p-20 text-center relative overflow-hidden shadow-2xl">
           <div className="relative z-10 max-w-2xl mx-auto">
-            <h2 className="text-3xl sm:text-5xl font-black text-white mb-8 uppercase leading-tight">Ready for an <br />Authentic Experience?</h2>
-            <p className="text-emerald-100 dark:text-emerald-400 mb-12 text-sm sm:text-lg font-medium">Request an order today. Pay only after our Chef approves your request based on fresh ingredients availability.</p>
+            <h2 className="text-3xl sm:text-5xl font-black text-white mb-8 uppercase leading-tight tracking-tight">Ready for an <br />Authentic Experience?</h2>
+            <p className="text-emerald-100 dark:text-emerald-400 mb-12 text-sm sm:text-lg font-medium opacity-90">Request an order today. Pay only after our Chef approves your request based on fresh ingredients availability.</p>
             <Link to="/shop" className="inline-flex items-center justify-center px-10 py-5 bg-white dark:bg-slate-900 text-emerald-900 dark:text-emerald-400 rounded-full text-sm font-black tracking-widest hover:bg-amber-400 dark:hover:bg-emerald-700 dark:hover:text-white transition-all shadow-xl active:scale-95">
               START ORDERING NOW
             </Link>

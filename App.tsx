@@ -277,13 +277,6 @@ const App: React.FC = () => {
       <nav className="sticky top-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-gray-100 dark:border-slate-900 transition-colors">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden p-2 -ml-2 text-slate-700 dark:text-slate-300 hover:text-emerald-800 transition-colors"
-              aria-label="Open menu"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
             <Link to="/" className="text-xl font-black text-emerald-800 dark:text-emerald-500 flex items-center gap-2 uppercase tracking-tighter">
               <UtensilsCrossed className="w-6 h-6 fill-emerald-100 dark:fill-emerald-900" />
               <span>DESHI<span className="text-amber-600">HALAL</span></span>
@@ -307,22 +300,22 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-5">
-            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-700 dark:text-slate-300">
+            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-700 dark:text-slate-300 transition-transform active:scale-90">
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
             {!isHeadChef && (
-              <Link to="/cart" className="relative p-2 text-slate-700 dark:text-slate-300">
+              <Link to="/cart" className="relative p-2 text-slate-700 dark:text-slate-300 transition-transform active:scale-90">
                 <ShoppingBag className="w-5 h-5" />
                 {cartCount > 0 && <span className="absolute top-0 right-0 bg-rose-600 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full shadow-lg">{cartCount}</span>}
               </Link>
             )}
             {currentUser ? (
               <div className="flex items-center gap-2 sm:gap-4">
-                <Link to="/account" className="relative p-2 text-slate-700 dark:text-slate-300">
+                <Link to="/account" className="relative p-2 text-slate-700 dark:text-slate-300 transition-transform active:scale-90">
                   <Bell className={`w-5 h-5 ${unreadNotifCount > 0 ? 'text-amber-500 animate-bounce' : ''}`} />
                   {unreadNotifCount > 0 && <span className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full shadow-lg">{unreadNotifCount}</span>}
                 </Link>
-                <Link to="/account" className="w-8 h-8 rounded-full overflow-hidden border border-emerald-200 dark:border-emerald-800 transition-transform active:scale-95">
+                <Link to="/account" className="w-8 h-8 rounded-full overflow-hidden border border-emerald-200 dark:border-emerald-800 transition-transform active:scale-95 shadow-md">
                   {currentUser.avatar ? (
                     <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
                   ) : (
@@ -333,8 +326,16 @@ const App: React.FC = () => {
                 </Link>
               </div>
             ) : (
-              <Link to="/login" className="px-4 sm:px-5 py-2 sm:py-2.5 bg-emerald-800 text-white rounded-full text-[10px] font-black tracking-widest uppercase hover:bg-emerald-900 transition-all">Sign In</Link>
+              <Link to="/login" className="px-4 sm:px-5 py-2 sm:py-2.5 bg-emerald-800 text-white rounded-full text-[10px] font-black tracking-widest uppercase hover:bg-emerald-900 transition-all shadow-md active:scale-95">Sign In</Link>
             )}
+            {/* Mobile Menu Icon positioned to the right */}
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden p-2 text-slate-700 dark:text-slate-300 hover:text-emerald-800 transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
           </div>
         </div>
       </nav>
@@ -386,12 +387,12 @@ const App: React.FC = () => {
                {currentUser ? (
                   <Link 
                     to="/account" 
-                    className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl"
+                    className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl shadow-inner"
                   >
                     <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-800 dark:text-emerald-400 font-black text-sm">
                       {currentUser.name.charAt(0)}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Signed in as</p>
                       <p className="text-xs font-bold text-slate-900 dark:text-white uppercase truncate">{currentUser.name}</p>
                     </div>
