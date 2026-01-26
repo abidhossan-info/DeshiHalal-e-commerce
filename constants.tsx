@@ -253,6 +253,8 @@ export const MOCK_USER: User = {
   id: 'user-1',
   email: 'customer@test.com',
   name: 'Sameer Khan',
+  phone: '+1 206-555-0123',
+  address: '123 Emerald Street, Seattle, WA 98101',
   role: UserRole.CUSTOMER
 };
 

@@ -38,6 +38,7 @@ const Account: React.FC<AccountProps> = ({
     name: '',
     email: '',
     phone: '',
+    address: '',
     avatar: ''
   });
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -58,6 +59,7 @@ const Account: React.FC<AccountProps> = ({
         name: currentUser.name || '',
         email: currentUser.email || '',
         phone: currentUser.phone || '',
+        address: currentUser.address || '',
         avatar: currentUser.avatar || ''
       });
     }
@@ -94,6 +96,7 @@ const Account: React.FC<AccountProps> = ({
         name: editForm.name,
         email: editForm.email,
         phone: editForm.phone,
+        address: editForm.address,
         avatar: editForm.avatar
       });
       setIsSaving(false);
@@ -308,7 +311,7 @@ const Account: React.FC<AccountProps> = ({
                     <Package className="w-4 h-4" /> Queue for Artisan Prep
                   </div>
                 ) : order.status === OrderStatus.PROCESSING ? (
-                  <div className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 rounded-xl md:rounded-2xl text-[10px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-800 flex items-center justify-center gap-3">
+                  <div className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 rounded-xl md:rounded-2xl text-[10px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-800 flex items-center justify-center gap-3 shadow-lg animate-pulse">
                     <Flame className="w-4 h-4" /> Active Preparation
                   </div>
                 ) : order.status === OrderStatus.DELIVERED ? (
@@ -414,6 +417,12 @@ const Account: React.FC<AccountProps> = ({
                            </div>
                            <div className="space-y-3">
                               <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <MapPin className="w-3 h-3" /> Boutique Address
+                              </label>
+                              <p className="text-lg font-bold text-slate-900 dark:text-white leading-relaxed">{currentUser.address || 'Not specified'}</p>
+                           </div>
+                           <div className="space-y-3">
+                              <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                 <Lock className="w-3 h-3" /> Portfolio Access
                               </label>
                               <div className="flex items-center gap-2">
@@ -510,6 +519,15 @@ const Account: React.FC<AccountProps> = ({
                                 className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 transition-all" 
                               />
                            </div>
+                           <div className="space-y-2 md:col-span-2">
+                              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Boutique Address</label>
+                              <textarea 
+                                value={editForm.address} 
+                                onChange={e => setEditForm({...editForm, address: e.target.value})}
+                                placeholder="Enter your full boutique delivery address..."
+                                className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-700 transition-all h-24 resize-none" 
+                              />
+                           </div>
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-slate-50 dark:border-slate-800">
@@ -540,7 +558,7 @@ const Account: React.FC<AccountProps> = ({
       {processingOrderId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => !isPaying && setProcessingOrderId(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden border border-slate-100 dark:border-slate-800">
+          <div className="relative bg-white dark:bg-slate-900 w-full max-lg rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden border border-slate-100 dark:border-slate-800">
             <div className="text-center mb-8 md:mb-10">
               <div className="w-16 h-16 md:w-20 md:h-20 bg-emerald-50 dark:bg-emerald-950/50 rounded-[2rem] md:rounded-[2.5rem] flex items-center justify-center text-emerald-800 dark:text-emerald-400 mx-auto mb-6 border border-emerald-100 dark:border-emerald-900">
                 <ShieldCheck className="w-8 h-8 md:w-10 md:h-10" />
