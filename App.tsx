@@ -112,7 +112,7 @@ const App: React.FC = () => {
       if (existing) {
         return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item);
       }
-      return [...prev, { ...product, quantity }];
+      return [...prev, { ...product, quantity, isApproved: true }];
     });
   };
 
@@ -166,7 +166,7 @@ const App: React.FC = () => {
       customerName: user.name,
       customerEmail: asGuest ? guestData?.email : user.email,
       customerPhone: asGuest ? guestData?.phone : user.phone,
-      items: [...cart],
+      items: cart.map(item => ({ ...item, isApproved: true })),
       total: cart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
       status: OrderStatus.PENDING,
       address: guestData?.address,
@@ -187,26 +187,39 @@ const App: React.FC = () => {
     navigate('/account');
   };
 
-  const updateOrderStatus = (orderId: string, status: OrderStatus, note?: string) => {
+  const updateOrderStatus = (orderId: string, status: OrderStatus, note?: string, updatedItems?: CartItem[]) => {
     setOrders(prevOrders => {
       const targetOrder = prevOrders.find(o => o.id === orderId);
       if (!targetOrder) return prevOrders;
 
+      const finalItems = updatedItems || targetOrder.items;
+      const finalTotal = finalItems.reduce((acc, item) => item.isApproved ? acc + (item.price * item.quantity) : acc, 0);
+
       const updatedOrders = prevOrders.map(order => 
         order.id === orderId 
-          ? { ...order, status, adminNote: note, updatedAt: new Date().toISOString(), paymentLinkSent: status === OrderStatus.APPROVED && order.userId.startsWith('GUEST') ? true : order.paymentLinkSent } 
+          ? { 
+              ...order, 
+              status, 
+              adminNote: note, 
+              items: finalItems,
+              total: finalTotal,
+              updatedAt: new Date().toISOString(), 
+              paymentLinkSent: status === OrderStatus.APPROVED && order.userId.startsWith('GUEST') ? true : order.paymentLinkSent 
+            } 
           : order
       );
 
       const noteText = note ? ` Head Chef Note: ${note}` : '';
       if (status === OrderStatus.APPROVED) {
         const isGuest = targetOrder.userId.startsWith('GUEST');
+        const rejectedCount = finalItems.filter(i => !i.isApproved).length;
+        const partialText = rejectedCount > 0 ? ` Note: ${rejectedCount} item(s) are unavailable.` : '';
         const guestMsg = isGuest ? ` A payment link has been dispatched to ${targetOrder.customerEmail}.` : '';
         
         addNotification(
           targetOrder.userId, 
           'Verified by Head Chef', 
-          `Your batch ${orderId} is verified. Payment is now unlocked.${noteText}${guestMsg}`, 
+          `Your batch ${orderId} is verified. Payment is now unlocked.${partialText}${noteText}${guestMsg}`, 
           'ORDER_UPDATE'
         );
       } else if (status === OrderStatus.REJECTED) {

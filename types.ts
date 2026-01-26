@@ -53,6 +53,7 @@ export interface Product {
 
 export interface CartItem extends Product {
   quantity: number;
+  isApproved?: boolean; // New flag for selective admin approval
 }
 
 export interface Order {

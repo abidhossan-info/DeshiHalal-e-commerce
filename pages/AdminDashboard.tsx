@@ -1,17 +1,16 @@
 
-import React, { useState, useMemo, useRef } from 'react';
-import { Order, OrderStatus, UserRole, User as UserType, Product, StockStatus, Testimonial } from '../types';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Order, OrderStatus, UserRole, User as UserType, Product, StockStatus, Testimonial, CartItem } from '../types';
 import { 
   X, ShieldCheck, ChevronRight, MessageCircle, 
-  // Added Clock to the lucide-react imports
   LayoutDashboard, Package, BarChart3, Settings, Save, AlertTriangle, 
-  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat, Phone, Mail, MapPin, Send, Loader2, Heart, Trash2, Flame, Truck, CheckCircle2, Clock
+  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat, Phone, Mail, MapPin, Send, Loader2, Heart, Trash2, Flame, Truck, CheckCircle2, Clock, Ban, CheckCircle
 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 
 interface AdminDashboardProps {
   orders: Order[];
-  updateStatus: (id: string, s: OrderStatus, note?: string) => void;
+  updateStatus: (id: string, s: OrderStatus, note?: string, items?: CartItem[]) => void;
   currentUser: UserType | null;
   products: Product[];
   setProducts: (p: Product[]) => void;
@@ -29,6 +28,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
   const [adminNote, setAdminNote] = useState('');
   const [isProcessingApproval, setIsProcessingApproval] = useState(false);
   
+  // Tracking item approvals for the currently selected order in modal
+  const [auditItems, setAuditItems] = useState<CartItem[]>([]);
+
   const [newTestimonial, setNewTestimonial] = useState<Omit<Testimonial, 'id' | 'createdAt'>>({
     name: '',
     role: 'Patron',
@@ -56,6 +58,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
 
   // Memoized Computations
   const selectedOrder = useMemo(() => orders.find(o => o.id === selectedOrderId), [orders, selectedOrderId]);
+  
+  // Initialize audit items when an order is selected
+  useEffect(() => {
+    if (selectedOrder) {
+      setAuditItems(selectedOrder.items);
+      setAdminNote(selectedOrder.adminNote || '');
+    }
+  }, [selectedOrder]);
+
   const pendingOrders = useMemo(() => orders.filter(o => o.status === OrderStatus.PENDING), [orders]);
   const totalRevenue = useMemo(() => orders.filter(o => o.status === OrderStatus.PAID || o.status === OrderStatus.PROCESSING || o.status === OrderStatus.DELIVERED).reduce((acc, o) => acc + o.total, 0), [orders]);
   const categories = useMemo(() => Array.from(new Set(products.map(p => p.category))), [products]);
@@ -64,20 +75,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
   if (!currentUser || currentUser.role !== UserRole.ADMIN) return null;
 
   // Handlers
+  const toggleItemApproval = (itemId: string) => {
+    setAuditItems(prev => prev.map(item => 
+      item.id === itemId ? { ...item, isApproved: !item.isApproved } : item
+    ));
+  };
+
+  const adjustedTotal = useMemo(() => {
+    return auditItems.reduce((acc, item) => item.isApproved ? acc + (item.price * item.quantity) : acc, 0);
+  }, [auditItems]);
+
   const handleAction = (status: OrderStatus) => {
     if (!selectedOrderId || !selectedOrder) return;
     
+    // If approving, we use the auditItems
+    const finalItems = status === OrderStatus.APPROVED ? auditItems : selectedOrder.items;
+
     if (status === OrderStatus.APPROVED && selectedOrder.userId.startsWith('GUEST')) {
       setIsProcessingApproval(true);
       // Simulate sending payment link
       setTimeout(() => {
-        updateStatus(selectedOrderId, status, adminNote);
+        updateStatus(selectedOrderId, status, adminNote, finalItems);
         setIsProcessingApproval(false);
         setSelectedOrderId(null);
         setAdminNote('');
       }, 1500);
     } else {
-      updateStatus(selectedOrderId, status, adminNote);
+      updateStatus(selectedOrderId, status, adminNote, finalItems);
       setSelectedOrderId(null);
       setAdminNote('');
     }
@@ -220,7 +244,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                 {orders.map(order => (
-                  <tr key={order.id} onClick={() => { setSelectedOrderId(order.id); setAdminNote(order.adminNote || ''); }} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-all group">
+                  <tr key={order.id} onClick={() => { setSelectedOrderId(order.id); }} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-all group">
                     <td className="px-10 py-8 font-black text-slate-900 dark:text-white text-sm">{order.id}</td>
                     <td className="px-10 py-8 font-bold uppercase text-[10px] text-slate-600 dark:text-slate-400 hidden md:table-cell">{order.customerName}</td>
                     <td className="px-10 py-8 font-black text-slate-900 dark:text-white text-sm">${order.total.toFixed(2)}</td>
@@ -386,7 +410,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
         </div>
       )}
 
-      {/* Robust Order Review Modal with Decision Notes and Guest Info */}
+      {/* Robust Order Review Modal with Decision Notes and Selective Item Approval */}
       {selectedOrderId && selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => !isProcessingApproval && setSelectedOrderId(null)}></div>
@@ -397,7 +421,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                     <ChefHat className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Review Batch</h3>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Audit Batch</h3>
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Reference: {selectedOrder.id}</p>
                   </div>
                 </div>
@@ -419,21 +443,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                                <span className="text-xs font-bold lowercase">{selectedOrder.customerEmail}</span>
                             </div>
                          )}
-                         {selectedOrder.customerPhone && (
-                            <div className="flex items-center gap-3 text-slate-500">
-                               <Phone className="w-3.5 h-3.5" />
-                               <span className="text-xs font-bold tabular-nums">{selectedOrder.customerPhone}</span>
-                            </div>
-                         )}
                       </div>
                    </div>
                    <div className="space-y-4">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Batch Value</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Audit Summary</p>
                       <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                         <span className="text-4xl font-black text-emerald-800 dark:text-emerald-500 tabular-nums">${selectedOrder.total.toFixed(2)}</span>
+                         <div>
+                            <p className="text-[8px] font-black uppercase text-slate-400">Current Value</p>
+                            <span className="text-2xl font-black text-emerald-800 dark:text-emerald-500 tabular-nums">${adjustedTotal.toFixed(2)}</span>
+                         </div>
                          <div className="text-right">
-                            <p className="text-[8px] font-black uppercase text-slate-400">Inventory items</p>
-                            <p className="text-xs font-black text-slate-900 dark:text-white">{selectedOrder.items.length}</p>
+                            <p className="text-[8px] font-black uppercase text-slate-400">Approved Items</p>
+                            <p className="text-xs font-black text-slate-900 dark:text-white">{auditItems.filter(i => i.isApproved).length} / {auditItems.length}</p>
                          </div>
                       </div>
                    </div>
@@ -450,32 +471,44 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                 )}
 
                 <div>
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Batch Composition</p>
-                   <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar pr-1">
-                      {selectedOrder.items.map((item, i) => (
-                        <div key={i} className="flex justify-between items-center bg-white dark:bg-slate-800 p-5 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm">
-                           <span className="text-xs font-black text-slate-900 dark:text-white">{item.quantity}x {item.name}</span>
-                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.category}</span>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Batch Composition (Select for Prep)</p>
+                   <div className="space-y-3">
+                      {auditItems.map((item, i) => (
+                        <div 
+                          key={i} 
+                          onClick={() => selectedOrder.status === OrderStatus.PENDING && toggleItemApproval(item.id)}
+                          className={`flex justify-between items-center p-5 border rounded-2xl transition-all ${
+                            !item.isApproved 
+                              ? 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 opacity-60 grayscale' 
+                              : 'bg-white dark:bg-slate-800 border-emerald-100 dark:border-emerald-900 shadow-sm'
+                          } ${selectedOrder.status === OrderStatus.PENDING ? 'cursor-pointer' : 'cursor-default'}`}
+                        >
+                           <div className="flex items-center gap-4">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'}`}>
+                                {item.isApproved ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                              </div>
+                              <span className={`text-xs font-black uppercase ${item.isApproved ? 'text-slate-900 dark:text-white' : 'text-slate-400 line-through'}`}>{item.quantity}x {item.name}</span>
+                           </div>
+                           <div className="text-right">
+                              <span className="block text-xs font-black text-slate-900 dark:text-white">${(item.price * item.quantity).toFixed(2)}</span>
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{item.isApproved ? 'Authorized' : 'Unavailable'}</span>
+                           </div>
                         </div>
                       ))}
                    </div>
                 </div>
 
-                {/* THE DECISION NOTE FIELD */}
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-2">
-                    <MessageCircle className="w-4 h-4" /> Head Chef Decision Note
+                    <MessageCircle className="w-4 h-4" /> Head Chef Dispatch Note
                   </label>
                   <textarea 
                     value={adminNote} 
                     onChange={e => setAdminNote(e.target.value)} 
-                    placeholder={selectedOrder.status === OrderStatus.PENDING ? "Provide reasoning or instructions for this batch (e.g., ingredient availability or pickup details)..." : "Notes for this batch..."}
+                    placeholder={selectedOrder.status === OrderStatus.PENDING ? "Add specific notes about ingredient availability or substitutions..." : "Notes for this batch..."}
                     readOnly={selectedOrder.status !== OrderStatus.PENDING}
                     className={`w-full p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl text-sm font-bold text-slate-900 dark:text-white outline-none transition-all ${selectedOrder.status === OrderStatus.PENDING ? 'focus:ring-4 focus:ring-emerald-500/10' : 'opacity-60 grayscale' } h-32 resize-none`} 
                   />
-                  {selectedOrder.status === OrderStatus.PENDING && (
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight italic">Patrons will see this note upon status update.</p>
-                  )}
                 </div>
              </div>
 
@@ -487,15 +520,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                      disabled={isProcessingApproval}
                      className="order-2 sm:order-1 py-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-rose-600 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-rose-50 transition-all active:scale-95 disabled:opacity-50"
                    >
-                     Deny Batch
+                     Deny Entire Batch
                    </button>
                    <button 
                      onClick={() => handleAction(OrderStatus.APPROVED)} 
-                     disabled={isProcessingApproval}
+                     disabled={isProcessingApproval || auditItems.every(i => !i.isApproved)}
                      className={`order-1 sm:order-2 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl active:scale-95 shadow-emerald-900/20 flex items-center justify-center gap-3 ${isGuestOrder ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-800 hover:bg-emerald-900'} text-white disabled:opacity-50`}
                    >
                      {isProcessingApproval ? <Loader2 className="w-4 h-4 animate-spin" /> : isGuestOrder ? <Send className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
-                     {isProcessingApproval ? 'Dispatching Link...' : isGuestOrder ? 'Verify & Send Payment Link' : 'Verify & Approve'}
+                     {isProcessingApproval ? 'Dispatching...' : isGuestOrder ? 'Verify & Send Link' : 'Verify & Approve'}
                    </button>
                  </>
                ) : selectedOrder.status === OrderStatus.PAID ? (
@@ -512,13 +545,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                  >
                    <Truck className="w-5 h-5" /> Mark as Delivered
                  </button>
-               ) : selectedOrder.status === OrderStatus.DELIVERED ? (
+               ) : (
                  <div className="col-span-2 py-5 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-3">
                    <CheckCircle2 className="w-5 h-5" /> Operation Successfully Completed
-                 </div>
-               ) : (
-                 <div className="col-span-2 py-5 text-center text-slate-400 font-black uppercase text-xs tracking-widest">
-                   Batch status: {selectedOrder.status}
                  </div>
                )}
              </div>
@@ -721,7 +750,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
         </div>
       )}
 
-      {/* Robust Product Edit Modal - RESPONSIVENESS UPDATED */}
+      {/* Robust Product Edit Modal */}
       {editingProduct && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setEditingProduct(null)}></div>
@@ -809,7 +838,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                   </div>
                </div>
 
-               {/* Description Field (Added for full context management) */}
+               {/* Description Field */}
                <div className="space-y-3 md:space-y-4">
                   <label className="text-[10px] md:text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-3">
                     <FileText className="w-4 h-4 text-amber-600" /> Narrative & Heritage
@@ -828,7 +857,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                 type="submit" 
                 className="flex-grow py-5 md:py-6 bg-slate-900 dark:bg-amber-600 text-white rounded-2xl md:rounded-[2rem] font-black text-[11px] md:text-[12px] uppercase tracking-[0.2em] md:tracking-[0.3em] hover:bg-black transition-all shadow-2xl shadow-slate-900/20 flex items-center justify-center gap-4 md:gap-5 active:scale-[0.98]"
               >
-                <Save className="w-5 h-5 md:w-6 md:h-6" /> Authorize Metadata Update
+                <Save className="w-5 h-5 md:w-6 md:h-6" /> Authorize Update
               </button>
               <button 
                 type="button" 

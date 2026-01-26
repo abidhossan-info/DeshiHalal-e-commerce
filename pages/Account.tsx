@@ -6,7 +6,7 @@ import {
   Clock, CheckCircle, CreditCard, ShoppingBag, Bell, LogOut, 
   Loader2, Lock, ShieldCheck, MessageCircle, User as UserIcon, Settings,
   ChevronRight, MapPin, Phone, AlertCircle, Sparkles, Edit2, Save, X, Camera, Mail, ClipboardList, XCircle,
-  Package, ChefHat, UtensilsCrossed, BarChart3, LayoutDashboard, Send, Truck, Flame
+  Package, ChefHat, UtensilsCrossed, BarChart3, LayoutDashboard, Send, Truck, Flame, Ban
 } from 'lucide-react';
 
 interface AccountProps {
@@ -253,9 +253,13 @@ const Account: React.FC<AccountProps> = ({
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Batch Composition</h4>
                   <div className="space-y-2 md:space-y-3">
                     {order.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl md:rounded-2xl border border-slate-100 dark:border-slate-800">
-                        <span className="text-[11px] md:text-xs font-black text-slate-900 dark:text-white uppercase">{item.quantity}x {item.name}</span>
-                        <span className="font-black text-slate-900 dark:text-white text-xs">${(item.price * item.quantity).toFixed(2)}</span>
+                      <div key={idx} className={`flex justify-between items-center p-4 rounded-xl md:rounded-2xl border transition-all ${item.isApproved === false ? 'bg-slate-50 dark:bg-slate-950/50 opacity-60 border-slate-100 dark:border-slate-800 grayscale' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'}`}>
+                        <div className="flex items-center gap-3">
+                          {item.isApproved === false ? <Ban className="w-3.5 h-3.5 text-rose-500" /> : <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />}
+                          <span className={`text-[11px] md:text-xs font-black uppercase ${item.isApproved === false ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-900 dark:text-white'}`}>{item.quantity}x {item.name}</span>
+                          {item.isApproved === false && <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest ml-1">Chef: Unavailable</span>}
+                        </div>
+                        <span className={`font-black text-xs ${item.isApproved === false ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>${(item.price * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
@@ -275,7 +279,7 @@ const Account: React.FC<AccountProps> = ({
 
               <div className="flex flex-col sm:flex-row items-center justify-between gap-6 md:gap-8 pt-8 md:pt-10 border-t border-slate-50 dark:border-slate-800">
                 <div className="w-full sm:w-auto text-center sm:text-left">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Batch Value</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Audit Value</p>
                   <p className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">${order.total.toFixed(2)}</p>
                 </div>
 
