@@ -265,8 +265,8 @@ const Account: React.FC<AccountProps> = ({
                   </div>
                 </div>
                 {order.adminNote && (
-                  <div className={`p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border flex gap-4 md:gap-6 relative overflow-hidden ${
-                    order.status === OrderStatus.REJECTED ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/50' : 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/50'
+                  <div className={`p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border flex gap-4 md:gap-6 relative overflow-hidden h-fit transition-all duration-500 ${
+                    order.status === OrderStatus.REJECTED ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/50' : 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/50 shadow-sm'
                   }`}>
                     <MessageCircle className={`w-6 h-6 shrink-0 mt-1 ${order.status === OrderStatus.REJECTED ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`} />
                     <div>
@@ -465,7 +465,7 @@ const Account: React.FC<AccountProps> = ({
                                 value={editForm.phone} 
                                 onChange={e => setEditForm({...editForm, phone: e.target.value})}
                                 placeholder="+880 1XXX-XXXXXX"
-                                className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-700 transition-all" 
+                                className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 transition-all" 
                               />
                            </div>
                            <div className="space-y-2">
@@ -525,7 +525,7 @@ const Account: React.FC<AccountProps> = ({
             <button 
               onClick={() => handlePayment(processingOrderId)} 
               disabled={isPaying} 
-              className="w-full py-5 md:py-6 bg-emerald-800 text-white rounded-xl md:rounded-2xl font-black text-[10px] md:text-[11px] uppercase tracking-[0.3em] shadow-xl hover:bg-emerald-900 transition-all flex items-center justify-center gap-4 md:gap-5 active:scale-95 disabled:opacity-50"
+              className="w-full py-5 md:py-6 bg-emerald-800 text-white rounded-xl md:rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] shadow-xl hover:bg-emerald-900 transition-all flex items-center justify-center gap-4 md:gap-5 active:scale-95 disabled:opacity-50"
             >
               {isPaying ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
               {isPaying ? 'Synchronizing Boutique...' : 'Complete Secure Pay'}

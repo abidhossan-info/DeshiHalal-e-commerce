@@ -4,7 +4,7 @@ import { Order, OrderStatus, UserRole, User as UserType, Product, StockStatus, T
 import { 
   X, ShieldCheck, ChevronRight, MessageCircle, 
   LayoutDashboard, Package, BarChart3, Settings, Save, AlertTriangle, 
-  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat, Phone, Mail, MapPin, Send, Loader2, Heart, Trash2, Flame, Truck, CheckCircle2, Clock, Ban, CheckCircle
+  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat, Phone, Mail, MapPin, Send, Loader2, Heart, Trash2, Flame, Truck, CheckCircle2, Clock, Ban, CheckCircle, Edit2
 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 
@@ -24,18 +24,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
-  const [isAddingTestimonial, setIsAddingTestimonial] = useState(false);
+  
+  // Testimonial Management States
+  const [testimonialModalMode, setTestimonialModalMode] = useState<'ADD' | 'EDIT' | null>(null);
+  const [testimonialForm, setTestimonialForm] = useState<Testimonial | Omit<Testimonial, 'id' | 'createdAt'>>({
+    name: '',
+    role: 'Patron',
+    text: ''
+  });
+
   const [adminNote, setAdminNote] = useState('');
   const [isProcessingApproval, setIsProcessingApproval] = useState(false);
   
   // Tracking item approvals for the currently selected order in modal
   const [auditItems, setAuditItems] = useState<CartItem[]>([]);
-
-  const [newTestimonial, setNewTestimonial] = useState<Omit<Testimonial, 'id' | 'createdAt'>>({
-    name: '',
-    role: 'Patron',
-    text: ''
-  });
 
   // Dynamic Category state
   const [isCustomCategory, setIsCustomCategory] = useState(false);
@@ -107,6 +109,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
     }
   };
 
+  const handleDeny = () => {
+    if (!adminNote.trim() || adminNote === 'Rejected: [Please specify why this batch cannot be fulfilled, e.g., missing ingredients or high kitchen load]') {
+      setAdminNote('Rejected: [Please specify why this batch cannot be fulfilled, e.g., missing ingredients or high kitchen load]');
+    } else {
+      handleAction(OrderStatus.REJECTED);
+    }
+  };
+
   const saveProductEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
@@ -122,17 +132,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
     resetNewProductForm();
   };
 
-  const createTestimonial = (e: React.FormEvent) => {
+  const handleTestimonialSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const id = `TEST-${Date.now()}`;
-    const entry: Testimonial = { ...newTestimonial, id, createdAt: new Date().toISOString() };
-    setTestimonials([entry, ...testimonials]);
-    setIsAddingTestimonial(false);
-    setNewTestimonial({ name: '', role: 'Patron', text: '' });
+    if (testimonialModalMode === 'ADD') {
+      const id = `TEST-${Date.now()}`;
+      const entry: Testimonial = { 
+        ...(testimonialForm as Omit<Testimonial, 'id' | 'createdAt'>), 
+        id, 
+        createdAt: new Date().toISOString() 
+      };
+      setTestimonials([entry, ...testimonials]);
+    } else if (testimonialModalMode === 'EDIT') {
+      const existing = testimonialForm as Testimonial;
+      setTestimonials(testimonials.map(t => t.id === existing.id ? existing : t));
+    }
+    setTestimonialModalMode(null);
+    setTestimonialForm({ name: '', role: 'Patron', text: '' });
   };
 
   const deleteTestimonial = (id: string) => {
-    setTestimonials(testimonials.filter(t => t.id !== id));
+    if (window.confirm("Permanently remove this patron accolade?")) {
+      setTestimonials(testimonials.filter(t => t.id !== id));
+    }
+  };
+
+  const startEditTestimonial = (t: Testimonial) => {
+    setTestimonialForm({ ...t });
+    setTestimonialModalMode('EDIT');
   };
 
   const resetNewProductForm = () => {
@@ -318,7 +344,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
              <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Patron Accolades</h2>
              <button 
-              onClick={() => setIsAddingTestimonial(true)}
+              onClick={() => {
+                setTestimonialForm({ name: '', role: 'Patron', text: '' });
+                setTestimonialModalMode('ADD');
+              }}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all active:scale-95 shadow-xl shadow-rose-900/20"
              >
                <Plus className="w-4 h-4" /> Feature New Story
@@ -328,14 +357,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {testimonials.map(t => (
               <div key={t.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2rem] shadow-sm relative group hover:border-rose-200 transition-all">
-                <button 
-                  onClick={() => deleteTestimonial(t.id)}
-                  className="absolute top-6 right-6 p-2 text-slate-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                  <button 
+                    onClick={() => startEditTestimonial(t)}
+                    className="p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg text-slate-400 hover:text-emerald-600 shadow-sm transition-colors"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button 
+                    onClick={() => deleteTestimonial(t.id)}
+                    className="p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg text-slate-400 hover:text-rose-600 shadow-sm transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <MessageCircle className="w-8 h-8 text-rose-100 dark:text-slate-800 mb-6" />
-                <p className="text-slate-600 dark:text-slate-400 italic text-sm mb-8 leading-relaxed">"{t.text}"</p>
+                <p className="text-slate-600 dark:text-slate-400 italic text-sm mb-8 leading-relaxed line-clamp-4">"{t.text}"</p>
                 <div className="flex items-center gap-4">
                    <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 font-black uppercase">{t.name.charAt(0)}</div>
                    <div>
@@ -357,30 +394,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
         </div>
       )}
 
-      {/* Testimonial Modal */}
-      {isAddingTestimonial && (
+      {/* Testimonial Modal (Unified Add/Edit) */}
+      {testimonialModalMode && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setIsAddingTestimonial(false)}></div>
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={() => setTestimonialModalMode(null)}></div>
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-10 md:p-12 shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800">
              <div className="flex justify-between items-center mb-10">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-lg shadow-rose-900/20">
                     <Heart className="w-6 h-6" />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Feature Feedback</h3>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                    {testimonialModalMode === 'ADD' ? 'Feature Feedback' : 'Modify Accolade'}
+                  </h3>
                 </div>
-                <button onClick={() => setIsAddingTestimonial(false)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><X /></button>
+                <button onClick={() => setTestimonialModalMode(null)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><X /></button>
              </div>
 
-             <form onSubmit={createTestimonial} className="space-y-6">
+             <form onSubmit={handleTestimonialSubmit} className="space-y-6">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Patron Name</label>
                     <input 
                       type="text" 
-                      value={newTestimonial.name}
-                      onChange={e => setNewTestimonial({...newTestimonial, name: e.target.value})}
+                      value={testimonialForm.name}
+                      onChange={e => setTestimonialForm({...testimonialForm, name: e.target.value})}
                       className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-600/10 transition-all"
+                      placeholder="e.g., Sarah Ahmed"
                       required
                     />
                   </div>
@@ -388,9 +428,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Context / Role</label>
                     <input 
                       type="text" 
-                      value={newTestimonial.role}
-                      onChange={e => setNewTestimonial({...newTestimonial, role: e.target.value})}
+                      value={testimonialForm.role}
+                      onChange={e => setTestimonialForm({...testimonialForm, role: e.target.value})}
                       className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-600/10 transition-all"
+                      placeholder="e.g., Regular Patron"
                       required
                     />
                   </div>
@@ -398,13 +439,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Patron Story</label>
                   <textarea 
-                    value={newTestimonial.text}
-                    onChange={e => setNewTestimonial({...newTestimonial, text: e.target.value})}
+                    value={testimonialForm.text}
+                    onChange={e => setTestimonialForm({...testimonialForm, text: e.target.value})}
                     className="w-full p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-rose-600/10 h-32 resize-none transition-all"
+                    placeholder="Describe their boutique experience..."
                     required
                   />
                 </div>
-                <button type="submit" className="w-full py-5 bg-rose-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-xl active:scale-95 shadow-rose-900/20">Authorize Publication</button>
+                <button type="submit" className="w-full py-5 bg-rose-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-rose-700 transition-all shadow-xl active:scale-95 shadow-rose-900/20">
+                  {testimonialModalMode === 'ADD' ? 'Authorize Publication' : 'Authorize Metadata Update'}
+                </button>
              </form>
           </div>
         </div>
@@ -505,9 +549,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                   <textarea 
                     value={adminNote} 
                     onChange={e => setAdminNote(e.target.value)} 
-                    placeholder={selectedOrder.status === OrderStatus.PENDING ? "Add specific notes about ingredient availability or substitutions..." : "Notes for this batch..."}
-                    readOnly={selectedOrder.status !== OrderStatus.PENDING}
-                    className={`w-full p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl text-sm font-bold text-slate-900 dark:text-white outline-none transition-all ${selectedOrder.status === OrderStatus.PENDING ? 'focus:ring-4 focus:ring-emerald-500/10' : 'opacity-60 grayscale' } h-32 resize-none`} 
+                    placeholder="Add specific notes about ingredient availability or substitutions..."
+                    className="w-full p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all h-32 resize-none" 
                   />
                 </div>
              </div>
@@ -516,7 +559,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                {selectedOrder.status === OrderStatus.PENDING ? (
                  <>
                    <button 
-                     onClick={() => handleAction(OrderStatus.REJECTED)} 
+                     onClick={handleDeny} 
                      disabled={isProcessingApproval}
                      className="order-2 sm:order-1 py-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-rose-600 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-rose-50 transition-all active:scale-95 disabled:opacity-50"
                    >
@@ -531,24 +574,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                      {isProcessingApproval ? 'Dispatching...' : isGuestOrder ? 'Verify & Send Link' : 'Verify & Approve'}
                    </button>
                  </>
-               ) : selectedOrder.status === OrderStatus.PAID ? (
-                 <button 
-                   onClick={() => handleAction(OrderStatus.PROCESSING)}
-                   className="col-span-2 py-5 bg-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
-                 >
-                   <Flame className="w-5 h-5" /> Start Preparation
-                 </button>
-               ) : selectedOrder.status === OrderStatus.PROCESSING ? (
-                 <button 
-                   onClick={() => handleAction(OrderStatus.DELIVERED)}
-                   className="col-span-2 py-5 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
-                 >
-                   <Truck className="w-5 h-5" /> Mark as Delivered
-                 </button>
                ) : (
-                 <div className="col-span-2 py-5 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-3">
-                   <CheckCircle2 className="w-5 h-5" /> Operation Successfully Completed
-                 </div>
+                 <>
+                   {selectedOrder.status === OrderStatus.PAID && (
+                     <button 
+                       onClick={() => handleAction(OrderStatus.PROCESSING)}
+                       className="col-span-2 py-5 bg-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
+                     >
+                       <Flame className="w-5 h-5" /> Start Preparation
+                     </button>
+                   )}
+                   {selectedOrder.status === OrderStatus.PROCESSING && (
+                     <button 
+                       onClick={() => handleAction(OrderStatus.DELIVERED)}
+                       className="col-span-2 py-5 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
+                     >
+                       <Truck className="w-5 h-5" /> Mark as Delivered
+                     </button>
+                   )}
+                   <button 
+                     onClick={() => handleAction(selectedOrder.status)}
+                     className="col-span-2 py-4 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-3 shadow-lg"
+                   >
+                     <Save className="w-4 h-4" /> Update Dispatch Note
+                   </button>
+                 </>
                )}
              </div>
           </div>
