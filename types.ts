@@ -3,7 +3,9 @@ export enum OrderStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
-  PAID = 'PAID'
+  PAID = 'PAID',
+  PROCESSING = 'PROCESSING',
+  DELIVERED = 'DELIVERED'
 }
 
 export enum UserRole {

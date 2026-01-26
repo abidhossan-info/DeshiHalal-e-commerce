@@ -3,8 +3,9 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Order, OrderStatus, UserRole, User as UserType, Product, StockStatus, Testimonial } from '../types';
 import { 
   X, ShieldCheck, ChevronRight, MessageCircle, 
+  // Added Clock to the lucide-react imports
   LayoutDashboard, Package, BarChart3, Settings, Save, AlertTriangle, 
-  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat, Phone, Mail, MapPin, Send, Loader2, Heart, Trash2
+  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat, Phone, Mail, MapPin, Send, Loader2, Heart, Trash2, Flame, Truck, CheckCircle2, Clock
 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 
@@ -56,7 +57,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
   // Memoized Computations
   const selectedOrder = useMemo(() => orders.find(o => o.id === selectedOrderId), [orders, selectedOrderId]);
   const pendingOrders = useMemo(() => orders.filter(o => o.status === OrderStatus.PENDING), [orders]);
-  const totalRevenue = useMemo(() => orders.filter(o => o.status === OrderStatus.PAID).reduce((acc, o) => acc + o.total, 0), [orders]);
+  const totalRevenue = useMemo(() => orders.filter(o => o.status === OrderStatus.PAID || o.status === OrderStatus.PROCESSING || o.status === OrderStatus.DELIVERED).reduce((acc, o) => acc + o.total, 0), [orders]);
   const categories = useMemo(() => Array.from(new Set(products.map(p => p.category))), [products]);
 
   // Security Gate
@@ -224,11 +225,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                     <td className="px-10 py-8 font-bold uppercase text-[10px] text-slate-600 dark:text-slate-400 hidden md:table-cell">{order.customerName}</td>
                     <td className="px-10 py-8 font-black text-slate-900 dark:text-white text-sm">${order.total.toFixed(2)}</td>
                     <td className="px-10 py-8">
-                      <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
+                      <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border flex items-center gap-2 w-fit ${
                         order.status === OrderStatus.PENDING ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border-amber-100' :
                         order.status === OrderStatus.APPROVED ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border-emerald-100' :
-                        order.status === OrderStatus.PAID ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' : 'bg-rose-50 text-rose-700'
-                      }`}>{order.status}</span>
+                        order.status === OrderStatus.PAID ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' : 
+                        order.status === OrderStatus.PROCESSING ? 'bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-100' :
+                        order.status === OrderStatus.DELIVERED ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-400 border-emerald-200' :
+                        'bg-rose-50 text-rose-700'
+                      }`}>
+                        {order.status === OrderStatus.PENDING && <Clock className="w-2.5 h-2.5" />}
+                        {order.status === OrderStatus.PROCESSING && <Flame className="w-2.5 h-2.5 animate-pulse" />}
+                        {order.status === OrderStatus.DELIVERED && <Truck className="w-2.5 h-2.5" />}
+                        {order.status}
+                      </span>
                     </td>
                     <td className="px-10 py-8 text-right">
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-amber-600 transition-colors inline" />
@@ -470,8 +479,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                 </div>
              </div>
 
-             {selectedOrder.status === OrderStatus.PENDING && (
-                <div className="p-8 md:p-12 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 shrink-0">
+             <div className="p-8 md:p-12 bg-slate-50 dark:bg-slate-950/50 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 shrink-0">
+               {selectedOrder.status === OrderStatus.PENDING ? (
+                 <>
                    <button 
                      onClick={() => handleAction(OrderStatus.REJECTED)} 
                      disabled={isProcessingApproval}
@@ -487,8 +497,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                      {isProcessingApproval ? <Loader2 className="w-4 h-4 animate-spin" /> : isGuestOrder ? <Send className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
                      {isProcessingApproval ? 'Dispatching Link...' : isGuestOrder ? 'Verify & Send Payment Link' : 'Verify & Approve'}
                    </button>
-                </div>
-             )}
+                 </>
+               ) : selectedOrder.status === OrderStatus.PAID ? (
+                 <button 
+                   onClick={() => handleAction(OrderStatus.PROCESSING)}
+                   className="col-span-2 py-5 bg-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
+                 >
+                   <Flame className="w-5 h-5" /> Start Preparation
+                 </button>
+               ) : selectedOrder.status === OrderStatus.PROCESSING ? (
+                 <button 
+                   onClick={() => handleAction(OrderStatus.DELIVERED)}
+                   className="col-span-2 py-5 bg-emerald-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
+                 >
+                   <Truck className="w-5 h-5" /> Mark as Delivered
+                 </button>
+               ) : selectedOrder.status === OrderStatus.DELIVERED ? (
+                 <div className="col-span-2 py-5 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-3">
+                   <CheckCircle2 className="w-5 h-5" /> Operation Successfully Completed
+                 </div>
+               ) : (
+                 <div className="col-span-2 py-5 text-center text-slate-400 font-black uppercase text-xs tracking-widest">
+                   Batch status: {selectedOrder.status}
+                 </div>
+               )}
+             </div>
           </div>
         </div>
       )}

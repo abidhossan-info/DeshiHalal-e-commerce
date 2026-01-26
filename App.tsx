@@ -223,6 +223,20 @@ const App: React.FC = () => {
           `Order ${orderId} has been paid. Start preparation immediately.`, 
           'SYSTEM'
         );
+      } else if (status === OrderStatus.PROCESSING) {
+        addNotification(
+          targetOrder.userId,
+          'Chef is Cooking',
+          `Order ${orderId} is now being prepared in the kitchen. Freshness guaranteed.`,
+          'ORDER_UPDATE'
+        );
+      } else if (status === OrderStatus.DELIVERED) {
+        addNotification(
+          targetOrder.userId,
+          'Batch Delivered',
+          `Order ${orderId} has been handed over. Enjoy your artisanal meal!`,
+          'ORDER_UPDATE'
+        );
       }
 
       return updatedOrders;

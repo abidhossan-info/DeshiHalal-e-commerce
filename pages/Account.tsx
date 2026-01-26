@@ -6,7 +6,7 @@ import {
   Clock, CheckCircle, CreditCard, ShoppingBag, Bell, LogOut, 
   Loader2, Lock, ShieldCheck, MessageCircle, User as UserIcon, Settings,
   ChevronRight, MapPin, Phone, AlertCircle, Sparkles, Edit2, Save, X, Camera, Mail, ClipboardList, XCircle,
-  Package, ChefHat, UtensilsCrossed, BarChart3, LayoutDashboard, Send
+  Package, ChefHat, UtensilsCrossed, BarChart3, LayoutDashboard, Send, Truck, Flame
 } from 'lucide-react';
 
 interface AccountProps {
@@ -203,6 +203,8 @@ const Account: React.FC<AccountProps> = ({
             <div key={order.id} id={order.id} className={`bg-white dark:bg-slate-900 border p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] shadow-sm transition-all duration-700 ${
               order.status === OrderStatus.APPROVED ? 'border-emerald-500 dark:border-emerald-600 shadow-2xl ring-4 ring-emerald-500/10' : 
               order.status === OrderStatus.REJECTED ? 'border-rose-100 dark:border-rose-900/50 opacity-90' :
+              order.status === OrderStatus.PROCESSING ? 'border-blue-500 dark:border-blue-600 shadow-xl ring-4 ring-blue-500/10' :
+              order.status === OrderStatus.DELIVERED ? 'border-emerald-600 dark:border-emerald-500 shadow-md' :
               'border-slate-100 dark:border-slate-800'
             }`}>
               <div className="flex flex-col sm:flex-row justify-between gap-6 md:gap-8 mb-8 md:mb-10 border-b border-slate-50 dark:border-slate-800 pb-8">
@@ -225,7 +227,17 @@ const Account: React.FC<AccountProps> = ({
                   ) : order.status === OrderStatus.PAID ? (
                     <div className="flex items-center gap-3 px-5 md:px-6 py-2 md:py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl border border-slate-800 dark:border-slate-100 shadow-lg">
                       <Package className="w-5 h-5" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">In Preparation</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Queue for Kitchen</span>
+                    </div>
+                  ) : order.status === OrderStatus.PROCESSING ? (
+                    <div className="flex items-center gap-3 px-5 md:px-6 py-2 md:py-2.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 rounded-2xl border border-blue-200 dark:border-blue-800 shadow-lg animate-pulse">
+                      <Flame className="w-5 h-5" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Chef is Cooking</span>
+                    </div>
+                  ) : order.status === OrderStatus.DELIVERED ? (
+                    <div className="flex items-center gap-3 px-5 md:px-6 py-2 md:py-2.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 rounded-2xl border border-emerald-100 dark:border-emerald-900 shadow-md">
+                      <Truck className="w-5 h-5" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Batch Delivered</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-3 px-5 md:px-6 py-2 md:py-2.5 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 rounded-2xl border border-rose-100 dark:border-rose-900/50">
@@ -276,8 +288,16 @@ const Account: React.FC<AccountProps> = ({
                     {order.paymentLinkSent ? 'Use Dispatched Payment Link' : 'Authorize Secure Payment'}
                   </button>
                 ) : order.status === OrderStatus.PAID ? (
+                  <div className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl md:rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-100 dark:border-emerald-900 flex items-center justify-center gap-3">
+                    <Package className="w-4 h-4" /> Queue for Artisan Prep
+                  </div>
+                ) : order.status === OrderStatus.PROCESSING ? (
+                  <div className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 rounded-xl md:rounded-2xl text-[10px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-800 flex items-center justify-center gap-3">
+                    <Flame className="w-4 h-4" /> Active Preparation
+                  </div>
+                ) : order.status === OrderStatus.DELIVERED ? (
                   <div className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 rounded-xl md:rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 dark:border-emerald-900 flex items-center justify-center gap-3">
-                    <CheckCircle className="w-4 h-4" /> Batch Paid & Secured
+                    <CheckCircle className="w-4 h-4" /> Artisanal Journey Complete
                   </div>
                 ) : (
                   <div className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-xl md:rounded-2xl text-[10px] font-black uppercase tracking-widest border border-slate-100 dark:border-slate-700 flex items-center justify-center gap-3 opacity-60 grayscale">
