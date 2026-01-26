@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, UtensilsCrossed, Sparkles, Star, ArrowRight, Truck, Heart, Quote, User, Clock } from 'lucide-react';
+import { ChevronRight, UtensilsCrossed, Sparkles, Star, ArrowRight, Truck, Heart, Quote, User, Clock, ChevronLeft } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import { Product, Testimonial } from '../types';
 
@@ -13,6 +13,34 @@ interface HomeProps {
 
 const Home: React.FC<HomeProps> = ({ products, addToCart, testimonials }) => {
   const featured = products.filter(p => p.isNew).slice(0, 4);
+  const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Responsive items per view
+  const itemsPerView = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 768) return 1;
+      if (window.innerWidth < 1024) return 2;
+      return 3;
+    }
+    return 3;
+  }, []);
+
+  const totalSlides = Math.ceil(testimonials.length / itemsPerView);
+
+  const nextSlide = useCallback(() => {
+    setCurrentTestimonialIndex((prev) => (prev + 1) % testimonials.length);
+  }, [testimonials.length]);
+
+  const prevSlide = useCallback(() => {
+    setCurrentTestimonialIndex((prev) => (prev - 1 + testimonials.length) % testimonials.length);
+  }, [testimonials.length]);
+
+  useEffect(() => {
+    if (isHovered) return;
+    const interval = setInterval(nextSlide, 5000);
+    return () => clearInterval(interval);
+  }, [nextSlide, isHovered]);
 
   return (
     <div className="pb-24">
@@ -120,36 +148,88 @@ const Home: React.FC<HomeProps> = ({ products, addToCart, testimonials }) => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-500 text-[10px] font-black uppercase tracking-widest mb-6">
-            <Heart className="w-3.5 h-3.5 fill-rose-700 dark:fill-rose-500" /> OUR HAPPY PATRONS
+      {/* Testimonials Slider Section */}
+      <section id="testimonials" className="py-24 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-500 text-[10px] font-black uppercase tracking-widest mb-6">
+              <Heart className="w-3.5 h-3.5 fill-rose-700 dark:fill-rose-500" /> OUR HAPPY PATRONS
+            </div>
+            <h2 className="text-4xl font-black text-slate-950 dark:text-slate-100 uppercase mb-4">What People Are Saying</h2>
+            <p className="text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto">Discover the experiences of our valued community members across the PNW region.</p>
           </div>
-          <h2 className="text-4xl font-black text-slate-950 dark:text-slate-100 mb-16 uppercase">What People Are Saying</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((t) => (
-              <div key={t.id} className="bg-white dark:bg-slate-900 p-10 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl dark:hover:shadow-emerald-950/20 transition-all group text-left">
-                <Quote className="w-10 h-10 text-emerald-100 dark:text-slate-800 mb-8 group-hover:text-emerald-200 dark:group-hover:text-emerald-800 transition-colors" />
-                <p className="text-slate-800 dark:text-slate-300 italic text-sm leading-relaxed mb-8 font-medium">"{t.text}"</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+          <div 
+            className="relative"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            {/* Slider Controls */}
+            <div className="absolute -left-4 top-1/2 -translate-y-1/2 z-20 hidden md:block">
+              <button 
+                onClick={prevSlide}
+                className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full shadow-xl flex items-center justify-center text-slate-900 dark:text-white border border-slate-100 dark:border-slate-700 hover:bg-emerald-800 hover:text-white transition-all active:scale-95"
+                aria-label="Previous testimonial"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="absolute -right-4 top-1/2 -translate-y-1/2 z-20 hidden md:block">
+              <button 
+                onClick={nextSlide}
+                className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full shadow-xl flex items-center justify-center text-slate-900 dark:text-white border border-slate-100 dark:border-slate-700 hover:bg-emerald-800 hover:text-white transition-all active:scale-95"
+                aria-label="Next testimonial"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Testimonial Container */}
+            <div className="relative overflow-hidden px-2">
+              <div 
+                className="flex transition-transform duration-700 ease-in-out"
+                style={{ transform: `translateX(-${currentTestimonialIndex * (100 / itemsPerView)}%)` }}
+              >
+                {testimonials.map((t) => (
+                  <div 
+                    key={t.id} 
+                    className="w-full md:w-1/2 lg:w-1/3 flex-shrink-0 px-4"
+                  >
+                    <div className="bg-white dark:bg-slate-900 p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:border-emerald-100 dark:hover:border-emerald-900/30 transition-all group text-left h-full flex flex-col">
+                      <Quote className="w-12 h-12 text-emerald-100 dark:text-slate-800 mb-8 group-hover:text-emerald-200 dark:group-hover:text-emerald-800 transition-colors" />
+                      <p className="text-slate-800 dark:text-slate-300 italic text-sm leading-relaxed mb-8 font-medium flex-grow">"{t.text}"</p>
+                      <div className="flex items-center gap-4 mt-auto">
+                        <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                          <User className="w-6 h-6 text-slate-500 dark:text-slate-400" />
+                        </div>
+                        <div className="text-left">
+                          <h4 className="text-xs font-black text-slate-950 dark:text-slate-100 uppercase tracking-wider">{t.name}</h4>
+                          <p className="text-[10px] text-emerald-800 dark:text-emerald-500 font-black tracking-widest uppercase mt-0.5">{t.role}</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <h4 className="text-xs font-black text-slate-950 dark:text-slate-100 uppercase tracking-wider">{t.name}</h4>
-                    <p className="text-[10px] text-emerald-800 dark:text-emerald-500 font-black tracking-widest uppercase">{t.role}</p>
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* Pagination Dots */}
+            <div className="flex justify-center gap-2 mt-12">
+              {Array.from({ length: Math.max(0, testimonials.length - itemsPerView + 1) }).map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentTestimonialIndex(idx)}
+                  className={`h-1.5 rounded-full transition-all ${currentTestimonialIndex === idx ? 'w-8 bg-emerald-800' : 'w-2 bg-slate-200 dark:bg-slate-800'}`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
         <div className="bg-emerald-900 dark:bg-emerald-950 rounded-[3rem] p-12 sm:p-20 text-center relative overflow-hidden shadow-2xl">
           <div className="relative z-10 max-w-2xl mx-auto">
             <h2 className="text-3xl sm:text-5xl font-black text-white mb-8 uppercase leading-tight">Ready for an <br />Authentic Experience?</h2>

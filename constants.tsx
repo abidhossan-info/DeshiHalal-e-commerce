@@ -142,9 +142,104 @@ export const INITIAL_PRODUCTS: Product[] = [
 ];
 
 export const INITIAL_TESTIMONIALS: Testimonial[] = [
-  { id: "t1", name: "Rafiqul Islam", role: "Regular Customer", text: "The Mutton Kacchi here is better than what I've had in Dhaka. The approval system is great because I know it's always fresh.", createdAt: new Date().toISOString() },
-  { id: "t2", name: "Sarah Ahmed", role: "Sweet Lover", text: "Their Rasgulla is simply out of this world. Soft, spongy, and perfectly sweet. I order for every family gathering!", createdAt: new Date().toISOString() },
-  { id: "t3", name: "Imran Chowdhury", role: "Snack Enthusiast", text: "Best snacks for our office tea parties. The Tikka skewers are incredibly juicy. Highly recommend the Monday Special!", createdAt: new Date().toISOString() }
+  { 
+    id: "t1", 
+    name: "Faiza Faria", 
+    role: "Seattle, WA", 
+    text: "Best Bangladeshi food serving in Seattle! Sharmin apu is hands down, one of the best sources of Bangladeshi food in this part of the PNW. Her cooking reminds me of home and she always saves the day for any event big or small. Especially her goat biryani, chicken roast, daal puri are to die for.", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t2", 
+    name: "Md. Salahuddin Khan", 
+    role: "Kent, WA", 
+    text: "Subhanallah, it's a heavenly test, catered from heart. May Allah (SWT) bless in your business. The Goat Biryani and Borhani were amazing.", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t3", 
+    name: "Soumi", 
+    role: "10+ Year Patron", 
+    text: "I have been a customer for 10+ years. We were delighted to discover Sharmin after we moved to Seattle from the Bay Area. We love the food. On top of that she is extremely professional.", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t4", 
+    name: "Sudip", 
+    role: "Seattle Metro Area", 
+    text: "We recently have moved to the Seattle metro area and have become new parents. Desi Halal came to the rescue. Homely Bengali food like Rui macher Jhol, goat biriyani, and different sweet items. Homely touch in all the food.", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t5", 
+    name: "Joyeeta", 
+    role: "Patron", 
+    text: "Sharmin, thanks so much for the delicious food. The Rui Kalia was perfect to kick off the Durga pujo celebrations. Everything was amazing. Thank you!", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t6", 
+    name: "Rimi Afroze", 
+    role: "Corporate Client", 
+    text: "Just wanted to acknowledge the amazing food and service Sharmin has been providing. I have ordered several work related catering from her and my team has enjoyed her delicious food every time. Highly recommend Tehari and Rasmalai.", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t7", 
+    name: "Honey Maria", 
+    role: "Event Patron", 
+    text: "I ordered biriyani, tuna kabab, and mixed veg for my kids' birthday. The food was awesome and fresh. Everyone loved it. Thank you!", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t8", 
+    name: "Farida", 
+    role: "Traditional Food Lover", 
+    text: "Reminds me my mom’s cooking!!! If you like to try fish, order the Rohu Kalia. It’s delicious and authentic. Reminded me my mom’s cooking!!! I ordered one of the meat dish and it was very good too.", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t9", 
+    name: "Hasan", 
+    role: "Ex-New Yorker", 
+    text: "Goat Biriyani - The Best!!! We recently moved from NY. After checking several local restaurants, we can say that the goat biriyani here is the best. It’s full of flavor, rice and meat just cooked perfectly.", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t10", 
+    name: "Jeni", 
+    role: "Family Customer", 
+    text: "Biryani is great. We really love the biryani. It is so delicious. Can't find this in any restaurant. My kids also love it. Thanks for your service!", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t11", 
+    name: "Sandeepan Sanyal", 
+    role: "North America", 
+    text: "My favorite dish is mutton biriyani with chicken roast and kabab. Best biriyani I ever ate at North America. My kids simply wait for that.", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t12", 
+    name: "Sraboni", 
+    role: "Regular Customer", 
+    text: "We have been order from Sharmin for some time now and have become regular customers. Very reliable service and easy to do business with. Always received homely food with professional service.", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t13", 
+    name: "Saina Baha", 
+    role: "Boutique Reviewer", 
+    text: "We are extremely satisfied for the overall experience. Fantastic super fresh delicious food items, reasonably priced. Goat Biriyani was fabulous & chicken shami kabab was perfectly cooked! Payesh was also a winner!", 
+    createdAt: new Date().toISOString() 
+  },
+  { 
+    id: "t14", 
+    name: "Sourav", 
+    role: "Sunday Party Host", 
+    text: "Thank you so much for the delicious food you cooked last Sunday. My friends loved all items, specially 'chom chom'. Both quality and quantity were perfect 10!!", 
+    createdAt: new Date().toISOString() 
+  }
 ];
 
 export const MOCK_ADMIN: User = {

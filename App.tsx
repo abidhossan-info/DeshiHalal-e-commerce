@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Routes, Route, useNavigate, Link } from 'react-router-dom';
-import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat, MoonStar } from 'lucide-react';
+import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
+import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat, MoonStar, Menu, X } from 'lucide-react';
 import { Product, Order, OrderStatus, UserRole, User as UserType, CartItem, Notification, Review, Testimonial } from './types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN, MOCK_USER, MOCK_GUEST, INITIAL_TESTIMONIALS } from './constants';
 
@@ -17,7 +17,7 @@ import LoginPage from './pages/LoginPage';
 import ProductDetails from './pages/ProductDetails';
 
 const App: React.FC = () => {
-  // 1. Hook Declarations (Must be at the top)
+  // 1. Hook Declarations
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [orders, setOrders] = useState<Order[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -29,8 +29,10 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('dh_theme');
     return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const navigate = useNavigate();
+  const location = useLocation();
 
   // 2. Computed Values (useMemo)
   const cartCount = useMemo(() => cart.reduce((acc, item) => acc + item.quantity, 0), [cart]);
@@ -88,6 +90,11 @@ const App: React.FC = () => {
       localStorage.setItem('dh_theme', 'light');
     }
   }, [isDarkMode]);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location]);
 
   // 4. Methods
   const addNotification = (userId: string, title: string, message: string, type: Notification['type']) => {
@@ -269,10 +276,19 @@ const App: React.FC = () => {
 
       <nav className="sticky top-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-gray-100 dark:border-slate-900 transition-colors">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <Link to="/" className="text-xl font-black text-emerald-800 dark:text-emerald-500 flex items-center gap-2 uppercase tracking-tighter">
-            <UtensilsCrossed className="w-6 h-6 fill-emerald-100 dark:fill-emerald-900" />
-            <span>DESHI<span className="text-amber-600">HALAL</span></span>
-          </Link>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden p-2 -ml-2 text-slate-700 dark:text-slate-300 hover:text-emerald-800 transition-colors"
+              aria-label="Open menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <Link to="/" className="text-xl font-black text-emerald-800 dark:text-emerald-500 flex items-center gap-2 uppercase tracking-tighter">
+              <UtensilsCrossed className="w-6 h-6 fill-emerald-100 dark:fill-emerald-900" />
+              <span>DESHI<span className="text-amber-600">HALAL</span></span>
+            </Link>
+          </div>
 
           <div className="hidden lg:flex items-center space-x-6 xl:space-x-8 uppercase font-black text-[9px] xl:text-[10px] tracking-widest text-slate-500 dark:text-slate-400">
             <Link to="/" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Home</Link>
@@ -290,7 +306,7 @@ const App: React.FC = () => {
             )}
           </div>
 
-          <div className="flex items-center space-x-5">
+          <div className="flex items-center space-x-2 sm:space-x-5">
             <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-700 dark:text-slate-300">
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
@@ -301,7 +317,7 @@ const App: React.FC = () => {
               </Link>
             )}
             {currentUser ? (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 sm:gap-4">
                 <Link to="/account" className="relative p-2 text-slate-700 dark:text-slate-300">
                   <Bell className={`w-5 h-5 ${unreadNotifCount > 0 ? 'text-amber-500 animate-bounce' : ''}`} />
                   {unreadNotifCount > 0 && <span className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full shadow-lg">{unreadNotifCount}</span>}
@@ -317,11 +333,81 @@ const App: React.FC = () => {
                 </Link>
               </div>
             ) : (
-              <Link to="/login" className="px-5 py-2.5 bg-emerald-800 text-white rounded-full text-[10px] font-black tracking-widest uppercase hover:bg-emerald-900 transition-all">Sign In</Link>
+              <Link to="/login" className="px-4 sm:px-5 py-2 sm:py-2.5 bg-emerald-800 text-white rounded-full text-[10px] font-black tracking-widest uppercase hover:bg-emerald-900 transition-all">Sign In</Link>
             )}
           </div>
         </div>
       </nav>
+
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-[100] lg:hidden">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
+          
+          {/* Menu Panel */}
+          <div className="absolute top-0 left-0 bottom-0 w-[80%] max-w-sm bg-white dark:bg-slate-900 shadow-2xl animate-in slide-in-from-left duration-500 flex flex-col">
+            <div className="h-20 px-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+              <Link to="/" className="text-lg font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-tighter">
+                DESHI<span className="text-amber-600">HALAL</span>
+              </Link>
+              <button 
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-2 text-slate-400 hover:text-rose-600 transition-colors"
+                aria-label="Close menu"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="flex-grow overflow-y-auto py-8 px-6 space-y-6 flex flex-col">
+              <Link to="/" className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] py-3 hover:text-emerald-800 transition-colors">Home</Link>
+              <Link to="/ramadan-menu" className="flex items-center gap-3 text-xs font-black text-amber-600 uppercase tracking-[0.2em] py-3 hover:text-amber-700 transition-colors">
+                <MoonStar className="w-4 h-4" /> Ramadan Specials
+              </Link>
+              <Link to="/monday-menu" className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] py-3 hover:text-emerald-800 transition-colors">Monday Menu</Link>
+              <Link to="/shop" className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] py-3 hover:text-emerald-800 transition-colors">Veg & Nonveg</Link>
+              <Link to="/shop?cat=SNACKS" className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] py-3 hover:text-emerald-800 transition-colors">Snacks</Link>
+              <Link to="/shop?cat=SWEETS" className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] py-3 hover:text-emerald-800 transition-colors">Sweets</Link>
+              
+              {isHeadChef && (
+                <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+                   <Link to="/admin" className="flex items-center gap-3 text-xs font-black text-amber-600 uppercase tracking-[0.2em] py-3 hover:text-amber-700 transition-colors">
+                    <ChefHat className="w-4 h-4" /> Kitchen Command
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800">
+               {currentUser ? (
+                  <Link 
+                    to="/account" 
+                    className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-800 dark:text-emerald-400 font-black text-sm">
+                      {currentUser.name.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Signed in as</p>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white uppercase truncate">{currentUser.name}</p>
+                    </div>
+                  </Link>
+               ) : (
+                  <Link 
+                    to="/login" 
+                    className="w-full py-4 bg-emerald-800 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center shadow-lg active:scale-95 transition-all"
+                  >
+                    Sign In to Boutique
+                  </Link>
+               )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="flex-grow">
         <Routes>
