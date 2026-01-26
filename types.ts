@@ -46,6 +46,7 @@ export interface Product {
   image: string;
   category: string;
   isMondaySpecial: boolean;
+  isRamadanSpecial: boolean; // Added for seasonal Ramadan menu
   isNew: boolean;
   isSoldOut?: boolean; 
   stockStatus: StockStatus;
@@ -53,7 +54,7 @@ export interface Product {
 
 export interface CartItem extends Product {
   quantity: number;
-  isApproved?: boolean; // New flag for selective admin approval
+  isApproved?: boolean; 
 }
 
 export interface Order {

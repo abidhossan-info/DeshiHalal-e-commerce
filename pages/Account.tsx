@@ -1,12 +1,12 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Order, OrderStatus, User as UserType, Notification, UserRole } from '../types';
 import { 
   Clock, CheckCircle, CreditCard, ShoppingBag, Bell, LogOut, 
   Loader2, Lock, ShieldCheck, MessageCircle, User as UserIcon, Settings,
   ChevronRight, MapPin, Phone, AlertCircle, Sparkles, Edit2, Save, X, Camera, Mail, ClipboardList, XCircle,
-  Package, ChefHat, UtensilsCrossed, BarChart3, LayoutDashboard, Send, Truck, Flame, Ban
+  Package, ChefHat, UtensilsCrossed, BarChart3, LayoutDashboard, Send, Truck, Flame, Ban, Upload
 } from 'lucide-react';
 
 interface AccountProps {
@@ -41,7 +41,8 @@ const Account: React.FC<AccountProps> = ({
     avatar: ''
   });
   const [saveSuccess, setSaveSuccess] = useState(false);
-
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   const isHeadChef = currentUser?.role === UserRole.ADMIN;
@@ -99,6 +100,17 @@ const Account: React.FC<AccountProps> = ({
       setIsEditing(false);
       setSaveSuccess(true);
     }, 1200);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditForm(prev => ({ ...prev, avatar: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -438,6 +450,36 @@ const Account: React.FC<AccountProps> = ({
                    ) : (
                      <form onSubmit={handleSaveProfile} className="space-y-8 animate-in fade-in duration-300">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                           <div className="flex flex-col items-center sm:items-start space-y-4 mb-4">
+                             <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                                <div className={`w-24 h-24 md:w-32 md:h-32 rounded-[2rem] md:rounded-[3rem] flex items-center justify-center text-3xl md:text-5xl font-black border-4 border-emerald-100 dark:border-slate-800 shadow-xl overflow-hidden transition-all group-hover:scale-105 ${isHeadChef ? 'bg-amber-100 dark:bg-amber-900 text-amber-800' : 'bg-emerald-100 dark:bg-emerald-900 text-emerald-800'}`}>
+                                  {editForm.avatar ? (
+                                    <img src={editForm.avatar} className="w-full h-full object-cover" alt="Preview" />
+                                  ) : (
+                                    isHeadChef ? <ChefHat className="w-10 h-10 md:w-16 md:h-16" /> : currentUser.name.charAt(0)
+                                  )}
+                                  <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Upload className="text-white w-6 h-6 mb-1" />
+                                    <span className="text-[8px] text-white font-black uppercase tracking-widest">Update</span>
+                                  </div>
+                                </div>
+                                <input 
+                                  ref={fileInputRef}
+                                  type="file" 
+                                  accept="image/*"
+                                  className="hidden" 
+                                  onChange={handleFileChange}
+                                />
+                             </div>
+                             <button 
+                               type="button"
+                               onClick={() => fileInputRef.current?.click()}
+                               className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                             >
+                               Change Photo
+                             </button>
+                           </div>
+
                            <div className="space-y-2">
                               <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Identity Name</label>
                               <input 
@@ -466,16 +508,6 @@ const Account: React.FC<AccountProps> = ({
                                 onChange={e => setEditForm({...editForm, phone: e.target.value})}
                                 placeholder="+880 1XXX-XXXXXX"
                                 className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 transition-all" 
-                              />
-                           </div>
-                           <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Avatar Resource URL</label>
-                              <input 
-                                type="url" 
-                                value={editForm.avatar} 
-                                onChange={e => setEditForm({...editForm, avatar: e.target.value})}
-                                placeholder="https://..."
-                                className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-700 transition-all" 
                               />
                            </div>
                         </div>
@@ -525,7 +557,7 @@ const Account: React.FC<AccountProps> = ({
             <button 
               onClick={() => handlePayment(processingOrderId)} 
               disabled={isPaying} 
-              className="w-full py-5 md:py-6 bg-emerald-800 text-white rounded-xl md:rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] shadow-xl hover:bg-emerald-900 transition-all flex items-center justify-center gap-4 md:gap-5 active:scale-95 disabled:opacity-50"
+              className="w-full py-5 md:py-6 bg-emerald-800 text-white rounded-xl md:rounded-2xl font-black text-[10px] md:text-[11px] uppercase tracking-[0.3em] shadow-xl hover:bg-emerald-900 transition-all flex items-center justify-center gap-4 md:gap-5 active:scale-95 disabled:opacity-50"
             >
               {isPaying ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
               {isPaying ? 'Synchronizing Boutique...' : 'Complete Secure Pay'}

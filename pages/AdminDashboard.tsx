@@ -4,7 +4,7 @@ import { Order, OrderStatus, UserRole, User as UserType, Product, StockStatus, T
 import { 
   X, ShieldCheck, ChevronRight, MessageCircle, 
   LayoutDashboard, Package, BarChart3, Settings, Save, AlertTriangle, 
-  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat, Phone, Mail, MapPin, Send, Loader2, Heart, Trash2, Flame, Truck, CheckCircle2, Clock, Ban, CheckCircle, Edit2
+  DollarSign, Plus, Image as ImageIcon, FileText, Tag, RefreshCcw, Eye, Camera, Upload, ClipboardList, ChefHat, Phone, Mail, MapPin, Send, Loader2, Heart, Trash2, Flame, Truck, CheckCircle2, Clock, Ban, CheckCircle, Edit2, MoonStar
 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 
@@ -52,6 +52,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
     image: '',
     category: 'NON VEG',
     isMondaySpecial: false,
+    isRamadanSpecial: false,
     isNew: true,
     stockStatus: StockStatus.IN_STOCK
   };
@@ -233,7 +234,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
         <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 w-full lg:w-auto overflow-x-auto no-scrollbar">
           <button onClick={() => setActiveTab('batches')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'batches' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Batches</button>
           <button onClick={() => setActiveTab('inventory')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'inventory' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Inventory</button>
-          <button onClick={() => setActiveTab('testimonials')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'testimonials' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Testimonials</button>
+          <button onClick={() => setActiveTab('testimonials')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'testimonials' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Testimonials</button>
           <button onClick={() => setActiveTab('metrics')} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'metrics' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-lg' : 'text-slate-400'}`}>Metrics</button>
         </div>
       </div>
@@ -366,7 +367,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                   </button>
                   <button 
                     onClick={() => deleteTestimonial(t.id)}
-                    className="p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg text-slate-400 hover:text-rose-600 shadow-sm transition-colors"
+                    className="p-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg text-slate-400 hover:text-emerald-600 shadow-sm transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -741,6 +742,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Monday menu exclusivity</span>
                       </div>
                     </label>
+                    <label className="flex-1 min-w-[200px] flex items-center gap-5 cursor-pointer group bg-slate-50 dark:bg-slate-950 px-8 py-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 hover:border-amber-300 transition-all">
+                      <input type="checkbox" checked={newProduct.isRamadanSpecial} onChange={e => setNewProduct({...newProduct, isRamadanSpecial: e.target.checked})} className="w-6 h-6 rounded-lg border-slate-300 text-amber-600 focus:ring-amber-500" />
+                      <div>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-white block">Ramadan Heritage Dish</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Ramadan seasonal menu</span>
+                      </div>
+                    </label>
                   </div>
                 </form>
 
@@ -885,6 +893,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ orders, updateStatus, c
                       </select>
                       <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 w-5 h-5 pointer-events-none" />
                     </div>
+                  </div>
+               </div>
+
+               {/* Special Badges Grid */}
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-10">
+                  <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl">
+                    <input 
+                      type="checkbox" 
+                      checked={editingProduct.isMondaySpecial} 
+                      onChange={e => setEditingProduct({...editingProduct, isMondaySpecial: e.target.checked})}
+                      className="w-5 h-5 rounded text-amber-600"
+                    />
+                    <label className="text-xs font-black uppercase text-slate-700 dark:text-slate-300">Monday Special</label>
+                  </div>
+                  <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl">
+                    <input 
+                      type="checkbox" 
+                      checked={editingProduct.isRamadanSpecial} 
+                      onChange={e => setEditingProduct({...editingProduct, isRamadanSpecial: e.target.checked})}
+                      className="w-5 h-5 rounded text-amber-600"
+                    />
+                    <label className="text-xs font-black uppercase text-slate-700 dark:text-slate-300">Ramadan Special</label>
                   </div>
                </div>
 

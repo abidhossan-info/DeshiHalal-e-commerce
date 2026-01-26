@@ -2,6 +2,43 @@
 import { Product, UserRole, User, StockStatus, Testimonial } from './types';
 
 export const INITIAL_PRODUCTS: Product[] = [
+  // RAMADAN SPECIALS
+  {
+    id: 'r1',
+    name: 'Shahi Mutton Haleem',
+    description: 'A slow-cooked, nutritious blend of wheat, barley, meat, and lentils. Topped with ginger, fried onions, and lemon.',
+    price: 15.00,
+    image: 'https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?auto=format&fit=crop&q=80&w=600',
+    category: 'NON VEG',
+    isMondaySpecial: false,
+    isRamadanSpecial: true,
+    isNew: true,
+    stockStatus: StockStatus.IN_STOCK
+  },
+  {
+    id: 'r2',
+    name: 'Premium Iftar Box',
+    description: 'A curated selection of Beguni, Alur Chop, Piaju, Dates, and Jilapi. Perfect for breaking the fast.',
+    price: 12.50,
+    image: 'https://images.unsplash.com/photo-1616683935288-75c165315573?auto=format&fit=crop&q=80&w=600',
+    category: 'SNACKS',
+    isMondaySpecial: false,
+    isRamadanSpecial: true,
+    isNew: true,
+    stockStatus: StockStatus.IN_STOCK
+  },
+  {
+    id: 'r3',
+    name: 'Royal Borhani',
+    description: 'Traditional spiced yogurt drink flavored with mint, black salt, and roasted cumin. Best paired with Biryani.',
+    price: 5.50,
+    image: 'https://images.unsplash.com/photo-1541658016709-82535e94bc69?auto=format&fit=crop&q=80&w=600',
+    category: 'SWEETS',
+    isMondaySpecial: false,
+    isRamadanSpecial: true,
+    isNew: false,
+    stockStatus: StockStatus.IN_STOCK
+  },
   // SWEETS
   {
     id: 's1',
@@ -11,6 +48,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: 'https://images.unsplash.com/photo-1589119908995-c6837fa14848?auto=format&fit=crop&q=80&w=600',
     category: 'SWEETS',
     isMondaySpecial: false,
+    isRamadanSpecial: false,
     isNew: true,
     stockStatus: StockStatus.IN_STOCK
   },
@@ -22,6 +60,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: 'https://images.unsplash.com/photo-1622315758111-66597288677c?auto=format&fit=crop&q=80&w=600',
     category: 'SWEETS',
     isMondaySpecial: true,
+    isRamadanSpecial: false,
     isNew: false,
     stockStatus: StockStatus.LOW_STOCK
   },
@@ -34,6 +73,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: 'https://images.unsplash.com/photo-1633945274405-b6c8069047b0?auto=format&fit=crop&q=80&w=600',
     category: 'NON VEG',
     isMondaySpecial: true,
+    isRamadanSpecial: false,
     isNew: true,
     stockStatus: StockStatus.IN_STOCK
   },
@@ -45,6 +85,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: 'https://images.unsplash.com/photo-1598103442097-8b74394b95c6?auto=format&fit=crop&q=80&w=600',
     category: 'NON VEG',
     isMondaySpecial: false,
+    isRamadanSpecial: false,
     isNew: false,
     stockStatus: StockStatus.IN_STOCK
   },
@@ -57,6 +98,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&q=80&w=600',
     category: 'VEG',
     isMondaySpecial: false,
+    isRamadanSpecial: false,
     isNew: true,
     stockStatus: StockStatus.IN_STOCK
   },
@@ -68,6 +110,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: 'https://images.unsplash.com/photo-1626132647523-66f5bf380027?auto=format&fit=crop&q=80&w=600',
     category: 'VEG',
     isMondaySpecial: true,
+    isRamadanSpecial: false,
     isNew: false,
     stockStatus: StockStatus.IN_STOCK
   },
@@ -80,6 +123,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: 'https://images.unsplash.com/photo-1601050633722-3f8d446bfd0f?auto=format&fit=crop&q=80&w=600',
     category: 'SNACKS',
     isMondaySpecial: false,
+    isRamadanSpecial: false,
     isNew: false,
     stockStatus: StockStatus.SOLD_OUT
   },
@@ -91,6 +135,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     image: 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&q=80&w=600',
     category: 'SNACKS',
     isMondaySpecial: false,
+    isRamadanSpecial: false,
     isNew: true,
     stockStatus: StockStatus.IN_STOCK
   }

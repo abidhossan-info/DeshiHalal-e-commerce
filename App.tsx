@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
-import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat } from 'lucide-react';
+import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat, MoonStar } from 'lucide-react';
 import { Product, Order, OrderStatus, UserRole, User as UserType, CartItem, Notification, Review, Testimonial } from './types';
 import { INITIAL_PRODUCTS, MOCK_ADMIN, MOCK_USER, MOCK_GUEST, INITIAL_TESTIMONIALS } from './constants';
 
@@ -9,6 +9,7 @@ import { INITIAL_PRODUCTS, MOCK_ADMIN, MOCK_USER, MOCK_GUEST, INITIAL_TESTIMONIA
 import Home from './pages/Home';
 import Shop from './pages/Shop';
 import MondayMenu from './pages/MondayMenu';
+import RamadanMenu from './pages/RamadanMenu';
 import CartPage from './pages/CartPage';
 import Account from './pages/Account';
 import AdminDashboard from './pages/AdminDashboard';
@@ -274,13 +275,16 @@ const App: React.FC = () => {
           </Link>
 
           <div className="hidden lg:flex items-center space-x-6 xl:space-x-8 uppercase font-black text-[9px] xl:text-[10px] tracking-widest text-slate-500 dark:text-slate-400">
-            <Link to="/" className="hover:text-emerald-800 dark:hover:text-emerald-400">Home</Link>
-            <Link to="/monday-menu" className="hover:text-emerald-800 dark:hover:text-emerald-400">Monday Menu</Link>
-            <Link to="/shop" className="hover:text-emerald-800 dark:hover:text-emerald-400">Veg & Nonveg</Link>
-            <Link to="/shop?cat=SNACKS" className="hover:text-emerald-800 dark:hover:text-emerald-400">Snacks</Link>
-            <Link to="/shop?cat=SWEETS" className="hover:text-emerald-800 dark:hover:text-emerald-400">Sweets</Link>
+            <Link to="/" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Home</Link>
+            <Link to="/ramadan-menu" className="flex items-center gap-1.5 text-amber-600 hover:text-amber-700 transition-colors">
+              <MoonStar className="w-3.5 h-3.5" /> Ramadan Menu
+            </Link>
+            <Link to="/monday-menu" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Monday Menu</Link>
+            <Link to="/shop" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Veg & Nonveg</Link>
+            <Link to="/shop?cat=SNACKS" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Snacks</Link>
+            <Link to="/shop?cat=SWEETS" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Sweets</Link>
             {isHeadChef && (
-              <Link to="/admin" className="text-amber-600 dark:text-amber-500 flex items-center gap-1.5 hover:text-amber-700">
+              <Link to="/admin" className="text-amber-600 dark:text-amber-500 flex items-center gap-1.5 hover:text-amber-700 transition-colors">
                 <ChefHat className="w-3.5 h-3.5" /> Kitchen Command
               </Link>
             )}
@@ -324,6 +328,7 @@ const App: React.FC = () => {
           <Route path="/" element={<Home products={products} addToCart={addToCart} testimonials={testimonials} />} />
           <Route path="/shop" element={<Shop products={products} addToCart={addToCart} />} />
           <Route path="/monday-menu" element={<MondayMenu products={products.filter(p => p.isMondaySpecial)} addToCart={addToCart} />} />
+          <Route path="/ramadan-menu" element={<RamadanMenu products={products.filter(p => p.isRamadanSpecial)} addToCart={addToCart} />} />
           <Route path="/cart" element={<CartPage cart={cart} removeFromCart={removeFromCart} updateQuantity={updateCartQuantity} requestOrder={requestOrder} clearCart={clearCart} currentUser={currentUser} />} />
           <Route path="/account" element={<Account currentUser={currentUser} orders={orders.filter(o => o.userId === currentUser?.id)} notifications={notifications.filter(n => n.userId === currentUser?.id)} markRead={markNotificationRead} updateStatus={updateOrderStatus} setCurrentUser={setCurrentUser} updateCurrentUser={updateCurrentUser} />} />
           <Route path="/admin" element={<AdminDashboard orders={orders} updateStatus={updateOrderStatus} currentUser={currentUser} products={products} setProducts={setProducts} testimonials={testimonials} setTestimonials={setTestimonials} />} />
