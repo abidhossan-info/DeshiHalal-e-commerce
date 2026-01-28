@@ -1,21 +1,20 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Lock, ChefHat, Users, ShieldCheck, Activity, 
   Chrome, Facebook, Fingerprint, Sparkles, Mail, ArrowLeft, MailOpen, UserPlus, Phone
 } from 'lucide-react';
-import { MOCK_ADMIN, MOCK_USER } from '../constants';
 import { User as UserType, UserRole } from '../types';
+import { supabase } from '../supabase';
 
 const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCurrentUser }) => {
   const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP' | 'RESET'>('LOGIN');
   const [userType, setUserType] = useState<'PATRON' | 'ADMIN'>('PATRON');
   
   // Form States
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   
@@ -25,100 +24,90 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
   
   const navigate = useNavigate();
 
-  // Simple local user persistence for demo purposes
-  const getRegisteredUsers = (): UserType[] => {
-    const saved = localStorage.getItem('dh_registered_users');
-    return saved ? JSON.parse(saved) : [MOCK_USER];
-  };
-
-  const saveUser = (newUser: UserType) => {
-    const users = getRegisteredUsers();
-    localStorage.setItem('dh_registered_users', JSON.stringify([...users, newUser]));
-  };
-
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    setTimeout(() => {
+    try {
       if (authMode === 'LOGIN') {
-        if (userType === 'ADMIN') {
-          if (username === 'admin' && password === 'admin') {
-            setCurrentUser(MOCK_ADMIN);
-            navigate('/admin');
-          } else {
-            setError('Invalid Credentials for Head Chef (admin/admin)');
-          }
-        } else {
-          // Check against "database"
-          const users = getRegisteredUsers();
-          const foundUser = users.find(u => (u.email === username || u.name === username) && password === 'user');
+        const { data, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (authError) throw authError;
+
+        if (data.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
           
-          // Fallback for mock user if not in list
-          if (username === 'user' && password === 'user') {
-            setCurrentUser(MOCK_USER);
-            navigate('/');
-          } else if (foundUser) {
-            setCurrentUser(foundUser);
-            navigate('/');
-          } else {
-            setError('Invalid Credentials. Use "user/user" or register a new account.');
+          if (profile) {
+            setCurrentUser(profile);
+            navigate(profile.role === UserRole.ADMIN ? '/admin' : '/');
           }
         }
       } else if (authMode === 'SIGNUP') {
-        // Registering a new Patron
-        const newUser: UserType = {
-          id: `U-${Date.now()}`,
-          name: fullName,
-          email: email,
-          phone: phone,
-          role: UserRole.CUSTOMER, // HARDCODED: Registration only creates Customers
-          avatar: undefined
-        };
-        saveUser(newUser);
-        setCurrentUser(newUser);
-        navigate('/');
+        const { data, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              phone: phone
+            }
+          }
+        });
+
+        if (authError) throw authError;
+
+        if (data.user) {
+          // Profile is usually created via Database Triggers in Supabase,
+          // but we can manually insert for this demo if needed.
+          const { error: profileError } = await supabase.from('profiles').insert([{
+            id: data.user.id,
+            email: data.user.email,
+            name: fullName,
+            phone: phone,
+            role: UserRole.CUSTOMER
+          }]);
+          
+          if (profileError) console.error("Profile creation error:", profileError);
+          
+          alert("Account created! Please check your email for verification if enabled.");
+          setAuthMode('LOGIN');
+        }
       }
+    } catch (err: any) {
+      setError(err.message || "An authentication error occurred.");
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
-  const handleResetPassword = (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-
-    setTimeout(() => {
+    try {
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email);
+      if (resetErr) throw resetErr;
       setResetSuccess(true);
+      setTimeout(() => setAuthMode('LOGIN'), 3000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
       setIsLoading(false);
-      setTimeout(() => {
-        setAuthMode('LOGIN');
-        setResetSuccess(false);
-      }, 3000);
-    }, 1200);
-  };
-
-  const handleSocialLogin = (provider: string) => {
-    setIsLoading(true);
-    setTimeout(() => {
-      const socialUser: UserType = {
-        id: `S-${Date.now()}`,
-        name: `${provider} Patron`,
-        email: `${provider.toLowerCase()}@boutique.com`,
-        role: UserRole.CUSTOMER
-      };
-      setCurrentUser(socialUser);
-      navigate('/');
-      setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-white dark:bg-slate-950 transition-colors duration-500">
       <div className="max-w-md w-full">
         
-        {/* Auth Mode Toggle */}
         {authMode === 'LOGIN' && (
           <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[2rem] mb-10 border border-slate-200 dark:border-slate-800 shadow-inner animate-in fade-in duration-500">
             <button 
@@ -156,14 +145,14 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
 
               <form onSubmit={handleAuth} className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Identifier</label>
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Secure Email</label>
                   <div className="relative group">
-                    <Users className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
+                    <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
                     <input 
-                      type="text" 
-                      value={username} 
-                      onChange={e => setUsername(e.target.value)}
-                      placeholder={userType === 'ADMIN' ? 'admin' : 'Email or Username'}
+                      type="email" 
+                      value={email} 
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="patron@deshi.com"
                       className="w-full pl-14 pr-6 py-4.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 dark:focus:ring-emerald-500 outline-none transition-all"
                       required 
                     />
@@ -204,31 +193,13 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
               </form>
 
               {userType === 'PATRON' && (
-                <div className="mt-10 animate-in slide-in-from-bottom-2 duration-500">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="h-px flex-grow bg-slate-100 dark:bg-slate-800"></div>
-                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Social Unlock</span>
-                    <div className="h-px flex-grow bg-slate-100 dark:bg-slate-800"></div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button onClick={() => handleSocialLogin('Google')} className="py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-center gap-3 hover:border-emerald-600 transition-all active:scale-95">
-                      <Chrome className="w-4 h-4 text-emerald-600" />
-                      <span className="text-[9px] font-black uppercase text-slate-900 dark:text-white">Google</span>
-                    </button>
-                    <button onClick={() => handleSocialLogin('Facebook')} className="py-4 bg-[#1877F2] text-white rounded-2xl flex items-center justify-center gap-3 hover:opacity-90 transition-all active:scale-95 shadow-lg">
-                      <Facebook className="w-4 h-4" />
-                      <span className="text-[9px] font-black uppercase">Facebook</span>
-                    </button>
-                  </div>
-
-                  <div className="mt-10 text-center">
-                    <button 
-                      onClick={() => setAuthMode('SIGNUP')}
-                      className="text-emerald-800 dark:text-emerald-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 mx-auto hover:gap-3 transition-all"
-                    >
-                      <Sparkles className="w-3 h-3" /> Create New Portfolio
-                    </button>
-                  </div>
+                <div className="mt-10 animate-in slide-in-from-bottom-2 duration-500 text-center">
+                  <button 
+                    onClick={() => setAuthMode('SIGNUP')}
+                    className="text-emerald-800 dark:text-emerald-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 mx-auto hover:gap-3 transition-all"
+                  >
+                    <Sparkles className="w-3 h-3" /> Create New Portfolio
+                  </button>
                 </div>
               )}
             </>
@@ -276,14 +247,14 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone (Optional)</label>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
                   <div className="relative group">
                     <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
                     <input 
                       type="tel" 
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
-                      placeholder="+880..."
+                      placeholder="+1..."
                       className="w-full pl-14 pr-6 py-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
                     />
                   </div>
@@ -295,6 +266,8 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
                     <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
                     <input 
                       type="password" 
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
                       placeholder="Create a password"
                       className="w-full pl-14 pr-6 py-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 outline-none transition-all"
                       required 
@@ -348,14 +321,13 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
                       <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
                       <input 
                         type="email" 
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
                         placeholder="patron@boutique.com"
                         className="w-full pl-14 pr-6 py-4.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 dark:focus:ring-emerald-500 outline-none transition-all"
                         required 
                       />
                     </div>
-                    <p className="text-[9px] text-slate-400 font-medium px-1 mt-2">
-                      We will dispatch a one-time secure link to authorize your new portfolio credentials.
-                    </p>
                   </div>
 
                   <button 
