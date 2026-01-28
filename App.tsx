@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
 import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat, MoonStar, Menu, X } from 'lucide-react';
 import { Product, Order, OrderStatus, UserRole, User as UserType, CartItem, Notification, Review, Testimonial } from './types';
@@ -46,41 +46,55 @@ const App: React.FC = () => {
 
   const isHeadChef = useMemo(() => currentUser?.role === UserRole.ADMIN, [currentUser]);
 
+  const fetchProfile = useCallback(async (userId: string, retryCount = 0): Promise<UserType | null> => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error && retryCount < 3) {
+      // If profile not found yet (trigger still running), wait and retry
+      await new Promise(res => setTimeout(res, 500));
+      return fetchProfile(userId, retryCount + 1);
+    }
+    return data;
+  }, []);
+
+  const fetchUserData = useCallback(async (userId: string) => {
+    const [ordersRes, notifsRes] = await Promise.all([
+      supabase.from('orders').select('*').eq('userId', userId).order('createdAt', { ascending: false }),
+      supabase.from('notifications').select('*').eq('userId', userId).order('createdAt', { ascending: false })
+    ]);
+    if (ordersRes.data) setOrders(ordersRes.data);
+    if (notifsRes.data) setNotifications(notifsRes.data);
+  }, []);
+
   // Handle Authentication and Initial Fetch
   useEffect(() => {
-    const fetchData = async () => {
-      // Safety timeout to ensure app eventually shows up even if Supabase has issues
+    const initializeApp = async () => {
       const safetyTimeout = setTimeout(() => {
         if (loading) setLoading(false);
       }, 5000);
 
       try {
-        // 1. Fetch Auth Session from Supabase
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (sessionError) throw sessionError;
-
+        // Initial profile sync
         if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
+          const profile = await fetchProfile(session.user.id);
           if (profile) {
             setCurrentUser(profile);
             localStorage.setItem('dh_user', JSON.stringify(profile));
+            fetchUserData(session.user.id);
           }
         } else {
-          // 2. Fallback to localStorage ONLY if no auth session (Guest handling)
           const savedUser = localStorage.getItem('dh_user');
           if (savedUser) {
             try {
               const parsed = JSON.parse(savedUser);
               if (parsed.role === UserRole.GUEST) {
                 setCurrentUser(parsed);
-              } else {
-                localStorage.removeItem('dh_user');
               }
             } catch {
               localStorage.removeItem('dh_user');
@@ -88,53 +102,48 @@ const App: React.FC = () => {
           }
         }
 
-        // 3. Fetch Public Content
-        const { data: prods } = await supabase.from('products').select('*');
-        setProducts(prods && prods.length > 0 ? prods : INITIAL_PRODUCTS);
+        // Public Data
+        const [prods, tests] = await Promise.all([
+          supabase.from('products').select('*'),
+          supabase.from('testimonials').select('*')
+        ]);
+        setProducts(prods.data && prods.data.length > 0 ? prods.data : INITIAL_PRODUCTS);
+        setTestimonials(tests.data && tests.data.length > 0 ? tests.data : INITIAL_TESTIMONIALS);
 
-        const { data: tests } = await supabase.from('testimonials').select('*');
-        setTestimonials(tests && tests.length > 0 ? tests : INITIAL_TESTIMONIALS);
-
-        // 4. Fetch User Specific Data
-        if (session?.user) {
-          const [ordersRes, notifsRes] = await Promise.all([
-            supabase.from('orders').select('*').eq('userId', session.user.id).order('createdAt', { ascending: false }),
-            supabase.from('notifications').select('*').eq('userId', session.user.id).order('createdAt', { ascending: false })
-          ]);
-          if (ordersRes.data) setOrders(ordersRes.data);
-          if (notifsRes.data) setNotifications(notifsRes.data);
-        }
       } catch (err) {
-        console.error("Critical Error during Supabase handshake:", err);
-        // Fallback to local defaults if Supabase fails
-        setProducts(INITIAL_PRODUCTS);
-        setTestimonials(INITIAL_TESTIMONIALS);
+        console.error("Initialization Error:", err);
       } finally {
         clearTimeout(safetyTimeout);
         setLoading(false);
       }
     };
 
-    fetchData();
+    initializeApp();
 
-    // Listen for Auth Changes globally
+    // GLOBAL AUTH LISTENER - The Single Source of Truth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+        const profile = await fetchProfile(session.user.id);
         if (profile) {
           setCurrentUser(profile);
           localStorage.setItem('dh_user', JSON.stringify(profile));
+          fetchUserData(session.user.id);
+          // Auto-navigate to home or dashboard if on login page
+          if (location.pathname === '/login') {
+            navigate(profile.role === UserRole.ADMIN ? '/admin' : '/account');
+          }
         }
       } else if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
         setOrders([]);
         setNotifications([]);
         localStorage.removeItem('dh_user');
+        navigate('/');
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchProfile, fetchUserData, navigate, location.pathname]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -371,7 +380,7 @@ const App: React.FC = () => {
           <Route path="/monday-menu" element={<MondayMenu products={products.filter(p => p.isMondaySpecial)} addToCart={addToCart} />} />
           <Route path="/ramadan-menu" element={<RamadanMenu products={products.filter(p => p.isRamadanSpecial)} addToCart={addToCart} />} />
           <Route path="/cart" element={<CartPage cart={cart} removeFromCart={removeFromCart} updateQuantity={updateCartQuantity} requestOrder={requestOrder} clearCart={clearCart} currentUser={currentUser} />} />
-          <Route path="/account" element={<Account currentUser={currentUser} orders={orders.filter(o => o.userId === currentUser?.id)} notifications={notifications.filter(n => n.userId === currentUser?.id)} markRead={markNotificationRead} updateStatus={updateOrderStatus} setCurrentUser={setCurrentUser} updateCurrentUser={updateCurrentUser} />} />
+          <Route path="/account" element={<Account currentUser={currentUser} orders={orders} notifications={notifications} markRead={markNotificationRead} updateStatus={updateOrderStatus} setCurrentUser={setCurrentUser} updateCurrentUser={updateCurrentUser} />} />
           <Route path="/admin" element={<AdminDashboard orders={orders} updateStatus={updateOrderStatus} currentUser={currentUser} products={products} setProducts={setProducts} testimonials={testimonials} setTestimonials={setTestimonials} />} />
           <Route path="/login" element={<LoginPage setCurrentUser={setCurrentUser} />} />
           <Route path="/product/:id" element={<ProductDetails products={products} addToCart={addToCart} reviews={reviews} addReview={() => {}} currentUser={currentUser} orders={orders} />} />

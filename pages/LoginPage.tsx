@@ -1,11 +1,10 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Lock, ChefHat, Users, ShieldCheck, Activity, 
-  Chrome, Facebook, Fingerprint, Sparkles, Mail, ArrowLeft, MailOpen, UserPlus, Phone
+  Fingerprint, Sparkles, Mail, ArrowLeft, MailOpen, UserPlus, Phone
 } from 'lucide-react';
-import { User as UserType, UserRole } from '../types';
+import { User as UserType } from '../types';
 import { supabase } from '../supabase';
 
 const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCurrentUser }) => {
@@ -21,8 +20,6 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
-  
-  const navigate = useNavigate();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,27 +28,14 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
 
     try {
       if (authMode === 'LOGIN') {
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
+        const { error: authError } = await supabase.auth.signInWithPassword({
           email,
           password
         });
-
         if (authError) throw authError;
-
-        if (data.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-          
-          if (profile) {
-            setCurrentUser(profile);
-            navigate(profile.role === UserRole.ADMIN ? '/admin' : '/');
-          }
-        }
+        // App.tsx auth listener handles redirect and state
       } else if (authMode === 'SIGNUP') {
-        const { data, error: authError } = await supabase.auth.signUp({
+        const { error: authError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -61,25 +45,9 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
             }
           }
         });
-
         if (authError) throw authError;
-
-        if (data.user) {
-          // Profile is usually created via Database Triggers in Supabase,
-          // but we can manually insert for this demo if needed.
-          const { error: profileError } = await supabase.from('profiles').insert([{
-            id: data.user.id,
-            email: data.user.email,
-            name: fullName,
-            phone: phone,
-            role: UserRole.CUSTOMER
-          }]);
-          
-          if (profileError) console.error("Profile creation error:", profileError);
-          
-          alert("Account created! Please check your email for verification if enabled.");
-          setAuthMode('LOGIN');
-        }
+        alert("Success! Account created. If verification is enabled, check your email. Otherwise, you may now log in.");
+        setAuthMode('LOGIN');
       }
     } catch (err: any) {
       setError(err.message || "An authentication error occurred.");

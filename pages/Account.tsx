@@ -3,10 +3,10 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Order, OrderStatus, User as UserType, Notification, UserRole } from '../types';
 import { 
-  Clock, CheckCircle, CreditCard, ShoppingBag, Bell, LogOut, 
-  Loader2, Lock, ShieldCheck, MessageCircle, User as UserIcon, Settings,
-  ChevronRight, MapPin, Phone, AlertCircle, Sparkles, Edit2, Save, X, Camera, Mail, ClipboardList, XCircle,
-  Package, ChefHat, UtensilsCrossed, BarChart3, LayoutDashboard, Send, Truck, Flame, Ban, Upload
+  Bell, LogOut, 
+  Loader2, ShieldCheck, User as UserIcon,
+  MapPin, Phone, Edit2, Save, X, Camera, Mail, ChefHat, LayoutDashboard, Send,
+  CheckCircle
 } from 'lucide-react';
 import { supabase } from '../supabase';
 
@@ -30,9 +30,6 @@ const Account: React.FC<AccountProps> = ({
   updateCurrentUser
 }) => {
   const [activeTab, setActiveTab] = useState<'orders' | 'alerts' | 'profile'>('orders');
-  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
-  const [isPaying, setIsPaying] = useState(false);
-  
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -44,7 +41,6 @@ const Account: React.FC<AccountProps> = ({
   });
   const [saveSuccess, setSaveSuccess] = useState(false);
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   const isHeadChef = currentUser?.role === UserRole.ADMIN;
@@ -77,25 +73,14 @@ const Account: React.FC<AccountProps> = ({
 
   const handleSignOut = async () => {
     try {
-      // Attempt to sign out from Supabase Auth
       await supabase.auth.signOut();
     } catch (err) {
-      console.error("Supabase sign out error:", err);
+      console.error("Sign out error:", err);
     } finally {
-      // Always clear local state, storage and redirect regardless of API success
+      // Listener in App.tsx handles the actual state cleanup
       localStorage.removeItem('dh_user');
-      setCurrentUser(null);
-      navigate('/', { replace: true });
+      navigate('/');
     }
-  };
-
-  const handlePayment = (orderId: string) => {
-    setIsPaying(true);
-    setTimeout(() => {
-      updateStatus(orderId, OrderStatus.PAID);
-      setIsPaying(false);
-      setProcessingOrderId(null);
-    }, 2000);
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -114,17 +99,6 @@ const Account: React.FC<AccountProps> = ({
       console.error(err);
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditForm(prev => ({ ...prev, avatar: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -217,6 +191,7 @@ const Account: React.FC<AccountProps> = ({
                     {order.items.map((item, idx) => (
                       <div key={idx} className={`flex justify-between items-center p-4 rounded-xl border border-slate-50 dark:border-slate-800`}>
                         <div className="flex items-center gap-3">
+                          {/* Fixed: CheckCircle is now imported from lucide-react */}
                           <CheckCircle className={`w-3.5 h-3.5 ${item.isApproved === false ? 'text-slate-300' : 'text-emerald-500'}`} />
                           <span className={`text-[11px] font-black uppercase ${item.isApproved === false ? 'text-slate-400 line-through' : 'text-slate-900 dark:text-white'}`}>{item.quantity}x {item.name}</span>
                         </div>
@@ -236,7 +211,7 @@ const Account: React.FC<AccountProps> = ({
             </div>
           )) : (
             <div className="py-20 text-center border-4 border-dashed border-slate-100 dark:border-slate-800 rounded-[3rem]">
-              <ShoppingBag className="w-12 h-12 text-slate-100 mx-auto mb-6" />
+              <UserIcon className="w-12 h-12 text-slate-100 mx-auto mb-6" />
               <p className="text-slate-400 font-black uppercase text-xs tracking-[0.3em]">No culinary operations found.</p>
             </div>
           )}
@@ -289,7 +264,7 @@ const Account: React.FC<AccountProps> = ({
                   )}
                   {saveSuccess && (
                     <div className="mt-4 flex items-center gap-2 text-emerald-600 animate-bounce">
-                      <CheckCircle className="w-4 h-4" />
+                      <ShieldCheck className="w-4 h-4" />
                       <span className="text-[9px] font-black uppercase tracking-widest">Portfolio Updated</span>
                     </div>
                   )}
