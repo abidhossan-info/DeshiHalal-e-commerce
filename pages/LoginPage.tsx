@@ -1,15 +1,18 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Lock, ChefHat, Users, ShieldCheck, Activity, 
-  Fingerprint, Sparkles, Mail, ArrowLeft, MailOpen, UserPlus, Phone
+  Fingerprint, Sparkles, Mail, ArrowLeft, MailOpen, UserPlus, Phone, Star
 } from 'lucide-react';
-import { User as UserType } from '../types';
+import { User as UserType, UserRole } from '../types';
+import { MOCK_ADMIN } from '../constants';
 import { supabase } from '../supabase';
 
 const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCurrentUser }) => {
   const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP' | 'RESET'>('LOGIN');
   const [userType, setUserType] = useState<'PATRON' | 'ADMIN'>('PATRON');
+  const navigate = useNavigate();
   
   // Form States
   const [email, setEmail] = useState('');
@@ -26,6 +29,17 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
     setIsLoading(true);
     setError('');
 
+    // --- BOUTIQUE ENTRY BYPASS FOR DEMO CREDENTIALS ---
+    if (email === 'admin@deshi.com' && password === 'admin') {
+      setTimeout(() => {
+        setCurrentUser(MOCK_ADMIN);
+        localStorage.setItem('dh_user', JSON.stringify(MOCK_ADMIN));
+        setIsLoading(false);
+        navigate('/admin');
+      }, 800);
+      return;
+    }
+
     try {
       if (authMode === 'LOGIN') {
         const { error: authError } = await supabase.auth.signInWithPassword({
@@ -33,7 +47,6 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
           password
         });
         if (authError) throw authError;
-        // App.tsx auth listener handles redirect and state
       } else if (authMode === 'SIGNUP') {
         const { error: authError } = await supabase.auth.signUp({
           email,
@@ -70,6 +83,13 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const prefillAdmin = () => {
+    setUserType('ADMIN');
+    setEmail('admin@deshi.com');
+    setPassword('admin');
+    setError('');
   };
 
   return (
@@ -159,6 +179,15 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
                   {isLoading ? 'Verifying...' : 'Unlock Entry'}
                 </button>
               </form>
+
+              <div className="mt-8 pt-8 border-t border-slate-50 dark:border-slate-800 text-center">
+                 <button 
+                  onClick={prefillAdmin}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-500 rounded-full text-[9px] font-black uppercase tracking-widest border border-amber-100 dark:border-amber-900 hover:bg-amber-100 transition-all"
+                 >
+                   <Star className="w-3 h-3 fill-amber-700" /> Quick Entry: Admin@Deshi.com
+                 </button>
+              </div>
 
               {userType === 'PATRON' && (
                 <div className="mt-10 animate-in slide-in-from-bottom-2 duration-500 text-center">

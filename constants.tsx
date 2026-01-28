@@ -244,7 +244,7 @@ export const INITIAL_TESTIMONIALS: Testimonial[] = [
 
 export const MOCK_ADMIN: User = {
   id: 'admin-1',
-  email: 'user',
+  email: 'admin@deshi.com',
   name: 'Head Chef',
   role: UserRole.ADMIN
 };
