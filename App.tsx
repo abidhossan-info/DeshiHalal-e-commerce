@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
 import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat, MoonStar, Menu, X } from 'lucide-react';
 import { Product, Order, OrderStatus, UserRole, User as UserType, CartItem, Notification, Review, Testimonial } from './types';
-import { INITIAL_PRODUCTS, INITIAL_TESTIMONIALS } from './constants';
+import { INITIAL_PRODUCTS, INITIAL_TESTIMONIALS, MOCK_ADMIN } from './constants';
 import { supabase } from './supabase';
 
 // --- Pages ---
@@ -46,7 +46,24 @@ const App: React.FC = () => {
 
   const isHeadChef = useMemo(() => currentUser?.role === UserRole.ADMIN, [currentUser]);
 
+  const fetchUserData = useCallback(async (userId: string, role: UserRole) => {
+    const ordersQuery = supabase.from('orders').select('*').order('createdAt', { ascending: false });
+    const notifsQuery = supabase.from('notifications').select('*').eq('userId', userId).order('createdAt', { ascending: false });
+
+    // Security: Admins see all, users see only theirs
+    if (role !== UserRole.ADMIN) {
+      ordersQuery.eq('userId', userId);
+    }
+
+    const [ordersRes, notifsRes] = await Promise.all([ordersQuery, notifsQuery]);
+    if (ordersRes.data) setOrders(ordersRes.data);
+    if (notifsRes.data) setNotifications(notifsRes.data);
+  }, []);
+
   const fetchProfile = useCallback(async (userId: string, retryCount = 0): Promise<UserType | null> => {
+    // Check if it's the demo admin UUID
+    if (userId === MOCK_ADMIN.id) return MOCK_ADMIN;
+
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -54,55 +71,81 @@ const App: React.FC = () => {
       .single();
 
     if (error && retryCount < 3) {
-      // If profile not found yet (trigger still running), wait and retry
       await new Promise(res => setTimeout(res, 500));
       return fetchProfile(userId, retryCount + 1);
     }
     return data;
   }, []);
 
-  const fetchUserData = useCallback(async (userId: string) => {
-    const [ordersRes, notifsRes] = await Promise.all([
-      supabase.from('orders').select('*').eq('userId', userId).order('createdAt', { ascending: false }),
-      supabase.from('notifications').select('*').eq('userId', userId).order('createdAt', { ascending: false })
-    ]);
-    if (ordersRes.data) setOrders(ordersRes.data);
-    if (notifsRes.data) setNotifications(notifsRes.data);
-  }, []);
+  // Real-time Subscriptions Engine
+  useEffect(() => {
+    if (!currentUser) return;
 
-  // Handle Authentication and Initial Fetch
+    // 1. Listen for ALL changes in Orders table (Admins receive everything)
+    const ordersChannel = supabase
+      .channel('orders-global')
+      .on('postgres_changes', { event: '*', table: 'orders' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newOrder = payload.new as Order;
+          if (currentUser.role === UserRole.ADMIN || newOrder.userId === currentUser.id) {
+            setOrders(prev => [newOrder, ...prev.filter(o => o.id !== newOrder.id)]);
+          }
+        } else if (payload.eventType === 'UPDATE' || payload.eventType === 'PATCH') {
+          setOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o));
+        }
+      })
+      .subscribe();
+
+    // 2. Listen for Notifications for current user
+    const notifsChannel = supabase
+      .channel(`notifs-${currentUser.id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        table: 'notifications',
+        filter: `userId=eq.${currentUser.id}`
+      }, (payload) => {
+        setNotifications(prev => [payload.new as Notification, ...prev]);
+      })
+      .subscribe();
+
+    // 3. Fallback Polling (Every 30 seconds) for Production Reliability
+    const pollInterval = setInterval(() => {
+      fetchUserData(currentUser.id, currentUser.role);
+    }, 30000);
+
+    return () => {
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(notifsChannel);
+      clearInterval(pollInterval);
+    };
+  }, [currentUser, fetchUserData]);
+
+  // App Initializer
   useEffect(() => {
     const initializeApp = async () => {
-      const safetyTimeout = setTimeout(() => {
-        if (loading) setLoading(false);
-      }, 5000);
-
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
-        // Initial profile sync
         if (session?.user) {
           const profile = await fetchProfile(session.user.id);
           if (profile) {
             setCurrentUser(profile);
             localStorage.setItem('dh_user', JSON.stringify(profile));
-            fetchUserData(session.user.id);
+            fetchUserData(session.user.id, profile.role);
           }
         } else {
           const savedUser = localStorage.getItem('dh_user');
           if (savedUser) {
             try {
               const parsed = JSON.parse(savedUser);
-              if (parsed.role === UserRole.GUEST) {
-                setCurrentUser(parsed);
-              }
+              setCurrentUser(parsed);
+              if (parsed.id) fetchUserData(parsed.id, parsed.role);
             } catch {
               localStorage.removeItem('dh_user');
             }
           }
         }
 
-        // Public Data
         const [prods, tests] = await Promise.all([
           supabase.from('products').select('*'),
           supabase.from('testimonials').select('*')
@@ -113,22 +156,19 @@ const App: React.FC = () => {
       } catch (err) {
         console.error("Initialization Error:", err);
       } finally {
-        clearTimeout(safetyTimeout);
         setLoading(false);
       }
     };
 
     initializeApp();
 
-    // GLOBAL AUTH LISTENER - The Single Source of Truth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
         const profile = await fetchProfile(session.user.id);
         if (profile) {
           setCurrentUser(profile);
           localStorage.setItem('dh_user', JSON.stringify(profile));
-          fetchUserData(session.user.id);
-          // Auto-navigate to home or dashboard if on login page
+          fetchUserData(session.user.id, profile.role);
           if (location.pathname === '/login') {
             navigate(profile.role === UserRole.ADMIN ? '/admin' : '/account');
           }
@@ -143,7 +183,7 @@ const App: React.FC = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile, fetchUserData, navigate, location.pathname]);
+  }, [fetchProfile, fetchUserData, navigate]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -155,10 +195,6 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location]);
-
   const addNotification = async (userId: string, title: string, message: string, type: Notification['type']) => {
     const newNotif: Omit<Notification, 'id'> = {
       userId,
@@ -168,11 +204,7 @@ const App: React.FC = () => {
       read: false,
       createdAt: new Date().toISOString()
     };
-    
-    const { data, error } = await supabase.from('notifications').insert([newNotif]).select();
-    if (!error && data) {
-      setNotifications(prev => [data[0], ...prev]);
-    }
+    await supabase.from('notifications').insert([newNotif]);
   };
 
   const markNotificationRead = async (id: string) => {
@@ -211,8 +243,8 @@ const App: React.FC = () => {
   const requestOrder = async (asGuest: boolean = false, guestData?: { name: string, email: string, phone: string, address: string }) => {
     if (cart.length === 0) return;
 
-    let userId = currentUser?.id || `guest-${Date.now()}`;
-    let customerName = currentUser?.name || guestData?.name || 'Guest';
+    const userId = currentUser?.id || `guest-${Date.now()}`;
+    const customerName = currentUser?.name || guestData?.name || 'Guest';
 
     const orderPayload = {
       userId,
@@ -227,27 +259,23 @@ const App: React.FC = () => {
       updatedAt: new Date().toISOString()
     };
 
-    const { data: newOrder, error } = await supabase.from('orders').insert([orderPayload]).select();
+    const { data, error } = await supabase.from('orders').insert([orderPayload]).select();
     
     if (error) {
-      console.error("Error creating order:", error);
+      console.error("Order Insertion Error:", error);
+      alert("System could not dispatch batch. Check database connectivity.");
       return;
     }
 
-    if (newOrder) {
-      setOrders(prev => [newOrder[0], ...prev]);
-      setCart([]);
-      
-      // Notify Admin
-      addNotification(
-        'admin-1', 
-        'New Batch Request', 
-        `Patron ${customerName} requested a new batch. Verify ingredients.`, 
-        'ORDER_REQUEST'
-      );
-
-      navigate('/account');
-    }
+    setCart([]);
+    // Notify the admin via the static admin ID
+    addNotification(
+      MOCK_ADMIN.id, 
+      'New Batch Request', 
+      `Patron ${customerName} requested a new batch for audit.`, 
+      'ORDER_REQUEST'
+    );
+    navigate('/account');
   };
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus, note?: string, updatedItems?: CartItem[]) => {
@@ -269,9 +297,6 @@ const App: React.FC = () => {
       .eq('id', orderId);
 
     if (!error) {
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status, adminNote: note, items: finalItems, total: finalTotal } : o));
-      
-      // Notify User
       addNotification(
         targetOrder.userId, 
         `Order Update: ${status}`, 
@@ -283,11 +308,7 @@ const App: React.FC = () => {
 
   const updateCurrentUser = async (userData: Partial<UserType>) => {
     if (!currentUser) return;
-    const { error } = await supabase
-      .from('profiles')
-      .update(userData)
-      .eq('id', currentUser.id);
-    
+    const { error } = await supabase.from('profiles').update(userData).eq('id', currentUser.id);
     if (!error) {
       const updatedUser = { ...currentUser, ...userData };
       setCurrentUser(updatedUser);

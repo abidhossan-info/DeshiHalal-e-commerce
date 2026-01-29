@@ -318,7 +318,7 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
                       <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-600" />
                       <input 
                         type="email" 
-                        value={email}
+                        value={email} 
                         onChange={e => setEmail(e.target.value)}
                         placeholder="patron@boutique.com"
                         className="w-full pl-14 pr-6 py-4.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-700 dark:focus:ring-emerald-500 outline-none transition-all"
