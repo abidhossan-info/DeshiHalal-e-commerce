@@ -6,7 +6,7 @@ import {
   Bell, LogOut, 
   Loader2, ShieldCheck, User as UserIcon,
   MapPin, Phone, Edit2, Save, X, Camera, Mail, ChefHat, LayoutDashboard, Send,
-  CheckCircle, CreditCard, Sparkles
+  CheckCircle, CreditCard, Sparkles, Box, Truck, CheckCircle2, MapPinned
 } from 'lucide-react';
 import { supabase } from '../supabase';
 
@@ -51,7 +51,6 @@ const Account: React.FC<AccountProps> = ({
     return [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [orders]);
 
-  // Sync form state when editing begins or user data changes
   useEffect(() => {
     if (currentUser) {
       setEditForm({
@@ -96,7 +95,6 @@ const Account: React.FC<AccountProps> = ({
     e.preventDefault();
     setIsSaving(true);
     try {
-      // updateCurrentUser handles state, localStorage, and database sync
       await updateCurrentUser({
         name: editForm.name,
         phone: editForm.phone,
@@ -173,6 +171,8 @@ const Account: React.FC<AccountProps> = ({
               order.status === OrderStatus.REJECTED ? 'border-rose-100 dark:border-rose-900/50 opacity-90' :
               order.status === OrderStatus.PAID ? 'border-emerald-500 dark:border-emerald-600 shadow-2xl' :
               order.status === OrderStatus.PROCESSING ? 'border-blue-500 dark:border-blue-600 shadow-xl ring-4 ring-blue-500/10' :
+              order.status === OrderStatus.READY_TO_DELIVERY ? 'border-indigo-500 dark:border-indigo-600 shadow-xl' :
+              order.status === OrderStatus.ON_THE_WAY ? 'border-orange-500 dark:border-orange-600 shadow-2xl animate-pulse' :
               order.status === OrderStatus.DELIVERED ? 'border-emerald-600 dark:border-emerald-500 shadow-md' :
               'border-slate-100 dark:border-slate-800'
             }`}>
@@ -188,10 +188,15 @@ const Account: React.FC<AccountProps> = ({
                     order.status === OrderStatus.APPROVED ? 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse' :
                     order.status === OrderStatus.PAID ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
                     order.status === OrderStatus.PROCESSING ? 'bg-blue-50 text-blue-700 border-blue-100 animate-pulse' :
+                    order.status === OrderStatus.READY_TO_DELIVERY ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                    order.status === OrderStatus.ON_THE_WAY ? 'bg-orange-50 text-orange-700 border-orange-100' :
                     order.status === OrderStatus.DELIVERED ? 'bg-slate-900 text-white' :
                     'bg-rose-50 text-rose-500'
                   }`}>
                     {order.status === OrderStatus.APPROVED && <CreditCard className="w-2.5 h-2.5" />}
+                    {order.status === OrderStatus.READY_TO_DELIVERY && <Box className="w-2.5 h-2.5" />}
+                    {order.status === OrderStatus.ON_THE_WAY && <Truck className="w-2.5 h-2.5 animate-bounce" />}
+                    {order.status === OrderStatus.DELIVERED && <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />}
                     {order.status}
                   </span>
                 </div>
@@ -243,6 +248,12 @@ const Account: React.FC<AccountProps> = ({
                 {!isHeadChef && order.status === OrderStatus.PAID && (
                   <div className="flex items-center gap-2 px-6 py-4 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-emerald-100 dark:border-emerald-900">
                     <Sparkles className="w-4 h-4 animate-pulse" /> Batch in Prep Phase
+                  </div>
+                )}
+
+                {!isHeadChef && order.status === OrderStatus.ON_THE_WAY && (
+                  <div className="flex items-center gap-2 px-6 py-4 bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400 rounded-2xl font-black text-[10px] uppercase tracking-widest border border-orange-100 dark:border-orange-900">
+                    <MapPinned className="w-4 h-4 animate-bounce" /> Courier Out for Delivery
                   </div>
                 )}
               </div>

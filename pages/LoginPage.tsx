@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Lock, ChefHat, Users, ShieldCheck, Activity, 
-  Fingerprint, Sparkles, Mail, ArrowLeft, MailOpen, UserPlus, Phone, Star
+  Fingerprint, Sparkles, Mail, ArrowLeft, MailOpen, UserPlus, Phone, Star,
+  Facebook
 } from 'lucide-react';
 import { User as UserType, UserRole } from '../types';
-import { MOCK_ADMIN } from '../constants';
+import { MOCK_ADMIN, MOCK_USER } from '../constants';
 import { supabase } from '../supabase';
 
 const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCurrentUser }) => {
@@ -67,6 +68,17 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSocialLogin = (platform: 'Google' | 'Facebook') => {
+    setIsLoading(true);
+    // Simulate social auth delay
+    setTimeout(() => {
+      setCurrentUser(MOCK_USER);
+      localStorage.setItem('dh_user', JSON.stringify(MOCK_USER));
+      setIsLoading(false);
+      navigate('/');
+    }, 1200);
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -179,6 +191,39 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
                   {isLoading ? 'Verifying...' : 'Unlock Entry'}
                 </button>
               </form>
+
+              {/* Social Login Section (Only for Patrons) */}
+              {userType === 'PATRON' && (
+                <>
+                  <div className="relative my-8">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-slate-100 dark:border-slate-800"></div>
+                    </div>
+                    <div className="relative flex justify-center text-[9px] font-black uppercase tracking-widest">
+                      <span className="bg-white dark:bg-slate-900 px-4 text-slate-400">Secure Social Access</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      onClick={() => handleSocialLogin('Google')}
+                      disabled={isLoading}
+                      className="flex items-center justify-center gap-3 py-4 border border-slate-100 dark:border-slate-800 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all active:scale-95 group"
+                    >
+                      <div className="w-5 h-5 flex items-center justify-center font-black text-rose-500 border-2 border-rose-500 rounded-sm text-[10px] group-hover:bg-rose-500 group-hover:text-white transition-colors">G</div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Google</span>
+                    </button>
+                    <button 
+                      onClick={() => handleSocialLogin('Facebook')}
+                      disabled={isLoading}
+                      className="flex items-center justify-center gap-3 py-4 border border-slate-100 dark:border-slate-800 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all active:scale-95 group"
+                    >
+                      <Facebook className="w-4 h-4 text-blue-600 fill-blue-600 group-hover:scale-110 transition-transform" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">Facebook</span>
+                    </button>
+                  </div>
+                </>
+              )}
 
               <div className="mt-8 pt-8 border-t border-slate-50 dark:border-slate-800 text-center">
                  <button 
