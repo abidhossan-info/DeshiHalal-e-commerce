@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
-import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat, MoonStar, Menu, X } from 'lucide-react';
+import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat, MoonStar, Menu, X, ChevronRight } from 'lucide-react';
 import { Product, Order, OrderStatus, UserRole, User as UserType, CartItem, Notification, Review, Testimonial } from './types';
 import { INITIAL_PRODUCTS, INITIAL_TESTIMONIALS, MOCK_ADMIN } from './constants';
 import { supabase } from './supabase';
@@ -26,6 +26,7 @@ const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
       const saved = localStorage.getItem('dh_theme');
@@ -34,7 +35,6 @@ const App: React.FC = () => {
       return false;
     }
   });
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,11 +46,15 @@ const App: React.FC = () => {
 
   const isHeadChef = useMemo(() => currentUser?.role === UserRole.ADMIN, [currentUser]);
 
+  // Close menu on route change
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location]);
+
   const fetchUserData = useCallback(async (userId: string, role: UserRole) => {
     const ordersQuery = supabase.from('orders').select('*').order('createdAt', { ascending: false });
     const notifsQuery = supabase.from('notifications').select('*').eq('userId', userId).order('createdAt', { ascending: false });
 
-    // Security: Admins see all, users see only theirs
     if (role !== UserRole.ADMIN) {
       ordersQuery.eq('userId', userId);
     }
@@ -61,15 +65,8 @@ const App: React.FC = () => {
   }, []);
 
   const fetchProfile = useCallback(async (userId: string, retryCount = 0): Promise<UserType | null> => {
-    // Check if it's the demo admin UUID
     if (userId === MOCK_ADMIN.id) return MOCK_ADMIN;
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
     if (error && retryCount < 3) {
       await new Promise(res => setTimeout(res, 500));
       return fetchProfile(userId, retryCount + 1);
@@ -77,11 +74,9 @@ const App: React.FC = () => {
     return data;
   }, []);
 
-  // Real-time Subscriptions Engine
   useEffect(() => {
     if (!currentUser) return;
 
-    // 1. Listen for ALL changes in Orders table (Admins receive everything)
     const ordersChannel = supabase
       .channel('orders-global')
       .on('postgres_changes', { event: '*', table: 'orders' }, (payload) => {
@@ -96,7 +91,6 @@ const App: React.FC = () => {
       })
       .subscribe();
 
-    // 2. Listen for Notifications for current user
     const notifsChannel = supabase
       .channel(`notifs-${currentUser.id}`)
       .on('postgres_changes', { 
@@ -108,7 +102,6 @@ const App: React.FC = () => {
       })
       .subscribe();
 
-    // 3. Fallback Polling (Every 30 seconds) for Production Reliability
     const pollInterval = setInterval(() => {
       fetchUserData(currentUser.id, currentUser.role);
     }, 30000);
@@ -120,7 +113,6 @@ const App: React.FC = () => {
     };
   }, [currentUser, fetchUserData]);
 
-  // App Initializer
   useEffect(() => {
     const initializeApp = async () => {
       try {
@@ -133,25 +125,16 @@ const App: React.FC = () => {
             localStorage.setItem('dh_user', JSON.stringify(profile));
             fetchUserData(session.user.id, profile.role);
           }
-        } else {
-          const savedUser = localStorage.getItem('dh_user');
-          if (savedUser) {
-            try {
-              const parsed = JSON.parse(savedUser);
-              setCurrentUser(parsed);
-              if (parsed.id) fetchUserData(parsed.id, parsed.role);
-            } catch {
-              localStorage.removeItem('dh_user');
-            }
-          }
         }
 
-        const [prods, tests] = await Promise.all([
+        const [prods, tests, revs] = await Promise.all([
           supabase.from('products').select('*'),
-          supabase.from('testimonials').select('*')
+          supabase.from('testimonials').select('*'),
+          supabase.from('reviews').select('*')
         ]);
         setProducts(prods.data && prods.data.length > 0 ? prods.data : INITIAL_PRODUCTS);
         setTestimonials(tests.data && tests.data.length > 0 ? tests.data : INITIAL_TESTIMONIALS);
+        setReviews(revs.data || []);
 
       } catch (err) {
         console.error("Initialization Error:", err);
@@ -169,9 +152,6 @@ const App: React.FC = () => {
           setCurrentUser(profile);
           localStorage.setItem('dh_user', JSON.stringify(profile));
           fetchUserData(session.user.id, profile.role);
-          if (location.pathname === '/login') {
-            navigate(profile.role === UserRole.ADMIN ? '/admin' : '/account');
-          }
         }
       } else if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
@@ -242,10 +222,8 @@ const App: React.FC = () => {
 
   const requestOrder = async (asGuest: boolean = false, guestData?: { name: string, email: string, phone: string, address: string }) => {
     if (cart.length === 0) return;
-
     const userId = currentUser?.id || `guest-${Date.now()}`;
     const customerName = currentUser?.name || guestData?.name || 'Guest';
-
     const orderPayload = {
       userId,
       customerName,
@@ -258,33 +236,22 @@ const App: React.FC = () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-
-    const { data, error } = await supabase.from('orders').insert([orderPayload]).select();
-    
+    const { error } = await supabase.from('orders').insert([orderPayload]);
     if (error) {
-      console.error("Order Insertion Error:", error);
-      alert("System could not dispatch batch. Check database connectivity.");
+      alert("System could not dispatch batch.");
       return;
     }
-
     setCart([]);
-    // Notify the admin via the static admin ID
-    addNotification(
-      MOCK_ADMIN.id, 
-      'New Batch Request', 
-      `Patron ${customerName} requested a new batch for audit.`, 
-      'ORDER_REQUEST'
-    );
+    addNotification(MOCK_ADMIN.id, 'New Batch Request', `Patron ${customerName} requested a new batch.`, 'ORDER_REQUEST');
     navigate('/account');
   };
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus, note?: string, updatedItems?: CartItem[]) => {
     const targetOrder = orders.find(o => o.id === orderId);
     if (!targetOrder) return;
-
     const finalItems = updatedItems || targetOrder.items;
-    const finalTotal = finalItems.reduce((acc, item) => item.isApproved ? acc + (item.price * item.quantity) : acc, 0);
-
+    const finalTotal = finalItems.reduce((acc, item) => item.isApproved !== false ? acc + (item.price * item.quantity) : acc, 0);
+    
     const { error } = await supabase
       .from('orders')
       .update({ 
@@ -297,12 +264,36 @@ const App: React.FC = () => {
       .eq('id', orderId);
 
     if (!error) {
-      addNotification(
-        targetOrder.userId, 
-        `Order Update: ${status}`, 
-        `Batch ${orderId} has been updated to ${status}. ${note || ''}`, 
-        'ORDER_UPDATE'
-      );
+      let title = `Order Update: ${status}`;
+      let message = `Your batch ${orderId} has been updated to ${status}.`;
+
+      if (status === OrderStatus.APPROVED) {
+        title = "Chef Approved Your Request! 🎉";
+        message = `Good news! Your batch #${orderId} has been approved. Please complete the payment to start preparation of your fresh items.`;
+      } else if (status === OrderStatus.READY_TO_DELIVERY) {
+        title = "Your Batch is Ready! 📦";
+        message = `Artisanal batch #${orderId} is freshly packed and ready for dispatch. Our courier will contact you soon.`;
+      } else if (status === OrderStatus.ON_THE_WAY) {
+        title = "Artisan Food En Route! 🚚";
+        message = `Great news! Your batch #${orderId} is out for delivery. Expect our boutique courier shortly!`;
+      } else if (status === OrderStatus.REJECTED) {
+        title = "Batch Verification Notice";
+        message = `We couldn't approve batch #${orderId} due to ingredient availability. Please check the Chef's notes for alternatives.`;
+      } else if (status === OrderStatus.DELIVERED) {
+        title = "Fresh Delivery Confirmed! ✨";
+        message = `We hope you enjoyed your artisanal experience with batch #${orderId}. We'd love to hear your feedback!`;
+      }
+
+      addNotification(targetOrder.userId, title, message, 'ORDER_UPDATE');
+    }
+  };
+
+  const addReview = async (reviewData: Omit<Review, 'id' | 'createdAt' | 'isApproved'>) => {
+    const newReview = { ...reviewData, isApproved: false, createdAt: new Date().toISOString() };
+    const { data, error } = await supabase.from('reviews').insert([newReview]).select().single();
+    if (!error && data) {
+      setReviews(prev => [...prev, data]);
+      addNotification(MOCK_ADMIN.id, 'New Product Review', `A customer left a review for product ${reviewData.productId}. Needs approval.`, 'SYSTEM');
     }
   };
 
@@ -335,64 +326,133 @@ const App: React.FC = () => {
 
       <nav className="sticky top-0 z-50 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-gray-100 dark:border-slate-900 transition-colors">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/" className="text-xl font-black text-emerald-800 dark:text-emerald-500 flex items-center gap-2 uppercase tracking-tighter">
-              <UtensilsCrossed className="w-6 h-6 fill-emerald-100 dark:fill-emerald-900" />
-              <span>DESHI<span className="text-amber-600">HALAL</span></span>
-            </Link>
-          </div>
+          <Link to="/" className="text-xl font-black text-emerald-800 dark:text-emerald-500 flex items-center gap-2 uppercase tracking-tighter shrink-0">
+            <UtensilsCrossed className="w-6 h-6 fill-emerald-100 dark:fill-emerald-900" />
+            <span>DESHI<span className="text-amber-600">HALAL</span></span>
+          </Link>
 
-          <div className="hidden lg:flex items-center space-x-6 xl:space-x-8 uppercase font-black text-[9px] xl:text-[10px] tracking-widest text-slate-500 dark:text-slate-400">
-            <Link to="/" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Home</Link>
-            <Link to="/ramadan-menu" className="flex items-center gap-1.5 text-amber-600 hover:text-amber-700 transition-colors">
+          {/* Desktop Menu */}
+          <div className="hidden lg:flex items-center space-x-6 uppercase font-black text-[10px] tracking-widest text-slate-500 dark:text-slate-400">
+            <Link to="/" className="hover:text-emerald-800 dark:hover:text-emerald-400">Home</Link>
+            <Link to="/ramadan-menu" className="flex items-center gap-1.5 text-amber-600">
               <MoonStar className="w-3.5 h-3.5" /> Ramadan Menu
             </Link>
-            <Link to="/monday-menu" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Monday Menu</Link>
-            <Link to="/shop" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Veg & Nonveg</Link>
-            <Link to="/shop?cat=SNACKS" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Snacks</Link>
-            <Link to="/shop?cat=SWEETS" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Sweets</Link>
+            <Link to="/monday-menu" className="hover:text-emerald-800 dark:hover:text-emerald-400">Monday Menu</Link>
+            <Link to="/shop" className="hover:text-emerald-800 dark:hover:text-emerald-400">Shop</Link>
             {isHeadChef && (
-              <Link to="/admin" className="text-amber-600 dark:text-amber-500 flex items-center gap-1.5 hover:text-amber-700 transition-colors">
+              <Link to="/admin" className="text-amber-600 dark:text-amber-500 flex items-center gap-1.5">
                 <ChefHat className="w-3.5 h-3.5" /> Kitchen Command
               </Link>
             )}
           </div>
 
-          <div className="flex items-center space-x-2 sm:space-x-5">
-            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-700 dark:text-slate-300 transition-transform active:scale-90">
+          {/* Action Icons */}
+          <div className="flex items-center space-x-2">
+            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-full transition-colors">
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
             {!isHeadChef && (
-              <Link to="/cart" className="relative p-2 text-slate-700 dark:text-slate-300 transition-transform active:scale-90">
+              <Link to="/cart" className="relative p-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-full transition-colors">
                 <ShoppingBag className="w-5 h-5" />
                 {cartCount > 0 && <span className="absolute top-0 right-0 bg-rose-600 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full shadow-lg">{cartCount}</span>}
               </Link>
             )}
-            {currentUser ? (
-              <div className="flex items-center gap-2 sm:gap-4">
-                <Link to="/account" className="relative p-2 text-slate-700 dark:text-slate-300 transition-transform active:scale-90">
-                  <Bell className={`w-5 h-5 ${unreadNotifCount > 0 ? 'text-amber-500 animate-bounce' : ''}`} />
-                  {unreadNotifCount > 0 && <span className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full shadow-lg">{unreadNotifCount}</span>}
-                </Link>
-                <Link to="/account" className="w-8 h-8 rounded-full overflow-hidden border border-emerald-200 dark:border-emerald-800 transition-transform active:scale-95 shadow-md">
-                  {currentUser.avatar ? (
-                    <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-800 dark:text-emerald-400 font-black text-xs">
-                      {currentUser.name.charAt(0)}
-                    </div>
-                  )}
-                </Link>
+            
+            <div className="hidden sm:flex items-center gap-2">
+              {currentUser ? (
+                <div className="flex items-center gap-2">
+                  <Link to="/account" className="relative p-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-full transition-colors">
+                    <Bell className={`w-5 h-5 ${unreadNotifCount > 0 ? 'text-amber-500 animate-bounce' : ''}`} />
+                    {unreadNotifCount > 0 && <span className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full shadow-lg">{unreadNotifCount}</span>}
+                  </Link>
+                  <Link to="/account" className="w-8 h-8 rounded-full overflow-hidden border border-emerald-200 dark:border-emerald-800">
+                    {currentUser.avatar ? (
+                      <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-800 dark:text-emerald-400 font-black text-xs uppercase">
+                        {currentUser.name.charAt(0)}
+                      </div>
+                    )}
+                  </Link>
+                </div>
+              ) : (
+                <Link to="/login" className="px-4 py-2 bg-emerald-800 text-white rounded-full text-[10px] font-black tracking-widest uppercase hover:bg-emerald-900 transition-all">Sign In</Link>
+              )}
+            </div>
+
+            {/* Mobile Toggle Button */}
+            <button 
+              onClick={() => setIsMenuOpen(!isMenuOpen)} 
+              className="lg:hidden p-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-full transition-all active:scale-90 relative z-[70]"
+            >
+              <div className="relative w-6 h-6">
+                 <div className={`absolute inset-0 transition-all duration-500 transform ${isMenuOpen ? 'rotate-90 opacity-0 scale-50' : 'rotate-0 opacity-100 scale-100'}`}>
+                    <Menu className="w-6 h-6" />
+                 </div>
+                 <div className={`absolute inset-0 transition-all duration-500 transform ${isMenuOpen ? 'rotate-0 opacity-100 scale-100' : '-rotate-90 opacity-0 scale-50'}`}>
+                    <X className="w-6 h-6 text-rose-600" />
+                 </div>
               </div>
-            ) : (
-              <Link to="/login" className="px-4 sm:px-5 py-2 sm:py-2.5 bg-emerald-800 text-white rounded-full text-[10px] font-black tracking-widest uppercase hover:bg-emerald-900 transition-all shadow-md active:scale-95">Sign In</Link>
-            )}
-            <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 text-slate-700 dark:text-slate-300 hover:text-emerald-800 transition-colors" aria-label="Open menu">
-              <Menu className="w-6 h-6" />
             </button>
           </div>
         </div>
       </nav>
+
+      {/* Mobile Menu Overlay */}
+      <div className={`fixed inset-0 z-[60] lg:hidden transition-all duration-500 ease-in-out ${isMenuOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'}`}>
+         {/* Blur Backdrop */}
+         <div className={`absolute inset-0 bg-slate-950/40 backdrop-blur-md transition-opacity duration-500 ${isMenuOpen ? 'opacity-100' : 'opacity-0'}`} onClick={() => setIsMenuOpen(false)}></div>
+         
+         {/* Slide Container */}
+         <div className={`absolute top-0 right-0 h-full w-full max-w-[320px] bg-white dark:bg-slate-950 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] transition-transform duration-500 ease-out border-l border-slate-100 dark:border-slate-900 flex flex-col ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="h-20 flex items-center px-6 border-b border-slate-50 dark:border-slate-900 shrink-0">
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Boutique Navigation</span>
+            </div>
+            
+            <div className="flex-grow overflow-y-auto py-10 px-8 flex flex-col gap-8">
+               {[
+                 { label: 'Home', path: '/' },
+                 { label: 'Ramadan Menu', path: '/ramadan-menu', highlight: 'text-amber-600', icon: <MoonStar className="w-4 h-4" /> },
+                 { label: 'Monday Menu', path: '/monday-menu' },
+                 { label: 'Full Shop', path: '/shop' }
+               ].map((item) => (
+                 <Link 
+                   key={item.path} 
+                   to={item.path} 
+                   className={`flex items-center justify-between text-2xl font-black uppercase tracking-tighter group ${item.highlight || 'text-slate-900 dark:text-white'}`}
+                 >
+                   <span className="flex items-center gap-3">{item.icon} {item.label}</span>
+                   <ChevronRight className="w-5 h-5 text-slate-200 dark:text-slate-800 group-hover:text-emerald-500 transition-colors" />
+                 </Link>
+               ))}
+               
+               {isHeadChef && (
+                 <Link to="/admin" className="flex items-center justify-between text-2xl font-black uppercase tracking-tighter text-amber-600 group mt-4 pt-8 border-t border-slate-50 dark:border-slate-900">
+                   <span className="flex items-center gap-3"><ChefHat className="w-5 h-5" /> Command</span>
+                   <ChevronRight className="w-5 h-5 opacity-40 group-hover:opacity-100 transition-opacity" />
+                 </Link>
+               )}
+            </div>
+
+            <div className="p-8 border-t border-slate-50 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
+               {currentUser ? (
+                  <Link to="/account" className="flex items-center gap-4 group">
+                    <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-white dark:border-slate-800 shadow-xl bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center font-black text-emerald-800 dark:text-emerald-400">
+                       {currentUser.avatar ? <img src={currentUser.avatar} className="w-full h-full object-cover" /> : currentUser.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-grow">
+                       <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase leading-none mb-1">{currentUser.name}</h4>
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">View Portfolio</p>
+                    </div>
+                  </Link>
+               ) : (
+                  <Link to="/login" className="w-full py-5 bg-emerald-800 text-white rounded-2xl font-black text-xs tracking-[0.3em] uppercase flex items-center justify-center shadow-xl shadow-emerald-900/20 active:scale-95 transition-all">
+                    Sign In Portfolio
+                  </Link>
+               )}
+            </div>
+         </div>
+      </div>
 
       <main className="flex-grow">
         <Routes>
@@ -402,9 +462,9 @@ const App: React.FC = () => {
           <Route path="/ramadan-menu" element={<RamadanMenu products={products.filter(p => p.isRamadanSpecial)} addToCart={addToCart} />} />
           <Route path="/cart" element={<CartPage cart={cart} removeFromCart={removeFromCart} updateQuantity={updateCartQuantity} requestOrder={requestOrder} clearCart={clearCart} currentUser={currentUser} />} />
           <Route path="/account" element={<Account currentUser={currentUser} orders={orders} notifications={notifications} markRead={markNotificationRead} updateStatus={updateOrderStatus} setCurrentUser={setCurrentUser} updateCurrentUser={updateCurrentUser} />} />
-          <Route path="/admin" element={<AdminDashboard orders={orders} updateStatus={updateOrderStatus} currentUser={currentUser} products={products} setProducts={setProducts} testimonials={testimonials} setTestimonials={setTestimonials} />} />
+          <Route path="/admin" element={<AdminDashboard orders={orders} updateStatus={updateOrderStatus} currentUser={currentUser} products={products} setProducts={setProducts} testimonials={testimonials} setTestimonials={setTestimonials} reviews={reviews} setReviews={setReviews} />} />
           <Route path="/login" element={<LoginPage setCurrentUser={setCurrentUser} />} />
-          <Route path="/product/:id" element={<ProductDetails products={products} addToCart={addToCart} reviews={reviews} addReview={() => {}} currentUser={currentUser} orders={orders} />} />
+          <Route path="/product/:id" element={<ProductDetails products={products} addToCart={addToCart} reviews={reviews} addReview={addReview} currentUser={currentUser} orders={orders} />} />
         </Routes>
       </main>
 

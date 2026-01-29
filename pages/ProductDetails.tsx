@@ -12,13 +12,12 @@ interface ProductDetailsProps {
   products: Product[];
   addToCart: (p: Product, q?: number) => void;
   reviews: Review[];
-  addReview: (r: Omit<Review, 'id' | 'createdAt'>) => void;
+  addReview: (r: Omit<Review, 'id' | 'createdAt' | 'isApproved'>) => void;
   currentUser: User | null;
   orders: Order[];
 }
 
 const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, reviews, addReview, currentUser, orders }) => {
-  // 1. Hooks (Must always run)
   const { id } = useParams<{ id: string }>();
   const [quantity, setQuantity] = useState(1);
   const [newComment, setNewComment] = useState('');
@@ -27,7 +26,10 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const product = useMemo(() => products.find(p => p.id === id), [products, id]);
-  const productReviews = useMemo(() => reviews.filter(r => r.productId === id), [reviews, id]);
+  
+  // Filter for approved reviews for this product
+  const productReviews = useMemo(() => reviews.filter(r => r.productId === id && r.isApproved), [reviews, id]);
+  
   const averageRating = useMemo(() => {
     if (productReviews.length === 0) return 0;
     return productReviews.reduce((acc, r) => acc + r.rating, 0) / productReviews.length;
@@ -37,7 +39,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
     if (!currentUser) return false;
     return orders.some(o => 
       o.userId === currentUser.id && 
-      o.status === OrderStatus.PAID && 
+      (o.status === OrderStatus.PAID || o.status === OrderStatus.DELIVERED) && 
       o.items.some(item => item.id === id)
     );
   }, [currentUser, orders, id]);
@@ -49,7 +51,6 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
       .slice(0, 4);
   }, [products, product]);
 
-  // 2. Early Return (After all hooks)
   if (!product) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-32 text-center">
@@ -67,7 +68,6 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
 
   const handleAddToCart = () => {
     addToCart(product, quantity);
-    // Reset quantity after adding for better UX
     setQuantity(1);
   };
 
@@ -76,29 +76,27 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
     if (!currentUser || !newComment.trim()) return;
 
     setIsSubmittingReview(true);
-    setTimeout(() => {
-      addReview({
-        productId: product.id,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        rating: newRating,
-        comment: newComment.trim()
-      });
-      setNewComment('');
-      setNewRating(5);
-      setHoveredRating(0);
-      setIsSubmittingReview(false);
-      alert('Thank you! Your boutique experience has been recorded.');
-    }, 600);
+    addReview({
+      productId: product.id,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      rating: newRating,
+      comment: newComment.trim()
+    });
+    setNewComment('');
+    setNewRating(5);
+    setHoveredRating(0);
+    setIsSubmittingReview(false);
+    alert('Thank you! Your boutique experience has been recorded and is awaiting chef moderation.');
   };
 
   return (
     <div className="bg-white dark:bg-slate-950 min-h-screen transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-          <Link to="/" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Home</Link>
+          <Link to="/" className="hover:text-emerald-800 dark:hover:text-emerald-400">Home</Link>
           <ChevronRight className="w-3 h-3" />
-          <Link to="/shop" className="hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors">Shop</Link>
+          <Link to="/shop" className="hover:text-emerald-800 dark:hover:text-emerald-400">Shop</Link>
           <ChevronRight className="w-3 h-3" />
           <span className="text-emerald-800 dark:text-emerald-400">{product.name}</span>
         </nav>
@@ -115,13 +113,6 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map((_, idx) => (
-                <div key={idx} className="aspect-square rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 opacity-60 hover:opacity-100 cursor-pointer transition-opacity">
-                  <img src={product.image} className="w-full h-full object-cover" alt="Detail" />
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="flex flex-col">
@@ -133,11 +124,6 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
                     <Star className="w-3 h-3 fill-amber-600 dark:fill-amber-500" /> New Addition
                   </span>
                 )}
-                {product.isMondaySpecial && (
-                  <span className="px-3 py-1 bg-slate-900 dark:bg-slate-800 text-white rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                    <Tag className="w-3 h-3" /> Monday Exclusive
-                  </span>
-                )}
               </div>
 
               <h1 className="text-4xl sm:text-5xl font-black text-slate-950 dark:text-slate-100 uppercase tracking-tight leading-none mb-4">{product.name}</h1>
@@ -147,71 +133,29 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
                     <Star key={s} className={`w-3.5 h-3.5 ${s <= Math.round(averageRating) ? 'text-amber-500 fill-amber-500' : 'text-slate-300 dark:text-slate-700'}`} />
                   ))}
                 </div>
-                <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{productReviews.length} Patron Reviews</span>
+                <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{productReviews.length} Verified Reviews</span>
               </div>
               
               <div className="flex items-center gap-6 mb-8">
                 <p className="text-3xl font-black text-emerald-800 dark:text-emerald-400">${product.price.toFixed(2)}</p>
                 <div className="h-8 w-px bg-slate-100 dark:bg-slate-800"></div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${isSoldOut ? 'bg-slate-300' : isLowStock ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${isSoldOut ? 'text-slate-400' : isLowStock ? 'text-amber-600' : 'text-emerald-700 dark:text-emerald-500'}`}>
-                    {isSoldOut ? 'Restocking Soon' : isLowStock ? 'Boutique Stock Low' : 'Freshly Available'}
-                  </span>
-                </div>
+                <span className={`text-[10px] font-black uppercase tracking-widest ${isSoldOut ? 'text-slate-400' : isLowStock ? 'text-amber-600' : 'text-emerald-700 dark:text-emerald-500'}`}>
+                  {isSoldOut ? 'Restocking Soon' : isLowStock ? 'Boutique Stock Low' : 'Freshly Available'}
+                </span>
               </div>
               <p className="text-slate-600 dark:text-slate-400 font-medium leading-relaxed mb-10 text-lg">{product.description}</p>
             </div>
 
-            {/* Quantity Selector & Action Area */}
             <div className="space-y-8 bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 mb-10">
               <div className="flex flex-col sm:flex-row gap-6 items-center">
-                {/* Visual Quantity Selector Component */}
-                <div className="flex items-center gap-1 bg-white dark:bg-slate-950 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-all focus-within:ring-2 focus-within:ring-emerald-700/10">
-                  <button 
-                    onClick={() => setQuantity(q => Math.max(1, q - 1))} 
-                    disabled={isSoldOut} 
-                    className="p-4 text-slate-500 hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed group"
-                    title="Decrease quantity"
-                  >
-                    <Minus className="w-4 h-4 stroke-[3px] group-active:scale-90 transition-transform" />
-                  </button>
-                  <span className="w-12 text-center font-black text-slate-900 dark:text-white text-base tabular-nums">
-                    {quantity}
-                  </span>
-                  <button 
-                    onClick={() => setQuantity(q => q + 1)} 
-                    disabled={isSoldOut} 
-                    className="p-4 text-slate-500 hover:text-emerald-800 dark:hover:text-emerald-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed group"
-                    title="Increase quantity"
-                  >
-                    <Plus className="w-4 h-4 stroke-[3px] group-active:scale-90 transition-transform" />
-                  </button>
+                <div className="flex items-center gap-1 bg-white dark:bg-slate-950 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <button onClick={() => setQuantity(q => Math.max(1, q - 1))} disabled={isSoldOut} className="p-4 text-slate-500 hover:text-emerald-800 disabled:opacity-30"><Minus className="w-4 h-4 stroke-[3px]" /></button>
+                  <span className="w-12 text-center font-black text-slate-900 dark:text-white text-base tabular-nums">{quantity}</span>
+                  <button onClick={() => setQuantity(q => q + 1)} disabled={isSoldOut} className="p-4 text-slate-500 hover:text-emerald-800 disabled:opacity-30"><Plus className="w-4 h-4 stroke-[3px]" /></button>
                 </div>
-
-                <button 
-                  onClick={handleAddToCart} 
-                  disabled={isSoldOut} 
-                  className={`flex-grow flex items-center justify-center gap-4 py-5 px-10 rounded-2xl font-black text-xs tracking-[0.2em] uppercase transition-all shadow-xl active:scale-95 ${isSoldOut ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-emerald-800 text-white hover:bg-emerald-900'}`}
-                >
-                  <ShoppingBag className="w-5 h-5" /> 
-                  {isSoldOut ? 'Currently Sold Out' : 'Reserve for Batch'}
+                <button onClick={handleAddToCart} disabled={isSoldOut} className={`flex-grow flex items-center justify-center gap-4 py-5 px-10 rounded-2xl font-black text-xs tracking-[0.2em] uppercase transition-all shadow-xl active:scale-95 ${isSoldOut ? 'bg-slate-200 text-slate-400' : 'bg-emerald-800 text-white hover:bg-emerald-900'}`}>
+                  <ShoppingBag className="w-5 h-5" /> {isSoldOut ? 'Sold Out' : 'Reserve for Batch'}
                 </button>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-6 justify-between pt-6 border-t border-slate-200/50 dark:border-slate-800">
-                <div className="flex items-center gap-3"><ShieldCheck className="w-5 h-5 text-emerald-700 dark:text-emerald-500" /><span className="text-[10px] font-black uppercase tracking-widest text-slate-500">100% Halal Assured</span></div>
-                <div className="flex items-center gap-3"><Clock className="w-5 h-5 text-amber-600 dark:text-amber-500" /><span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Manual Batch Approval</span></div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl flex items-center gap-4">
-                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-950/50 rounded-xl flex items-center justify-center text-emerald-800 dark:text-emerald-400"><Utensils className="w-5 h-5" /></div>
-                <div className="text-left"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Ingredients</p><p className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase">Premium Artisan Selection</p></div>
-              </div>
-              <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl flex items-center gap-4">
-                <div className="w-10 h-10 bg-amber-50 dark:bg-amber-950/50 rounded-xl flex items-center justify-center text-amber-700 dark:text-amber-400"><AlertTriangle className="w-5 h-5" /></div>
-                <div className="text-left"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Allergens</p><p className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase">Contains Dairy/Spices</p></div>
               </div>
             </div>
           </div>
@@ -221,7 +165,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
           <div className="flex items-center gap-6 mb-16">
             <div className="p-5 bg-emerald-50 dark:bg-emerald-950/50 rounded-[2rem]"><MessageSquare className="w-8 h-8 text-emerald-800 dark:text-emerald-400" /></div>
             <div>
-              <h2 className="text-4xl font-black text-slate-950 dark:text-slate-100 uppercase tracking-tighter">Patron Feedback</h2>
+              <h2 className="text-4xl font-black text-slate-950 dark:text-white uppercase tracking-tighter">Patron Feedback</h2>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mt-2">Verified Culinary Experiences</p>
             </div>
           </div>
@@ -233,14 +177,14 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
                   <div className="w-14 h-14 bg-slate-100 dark:bg-slate-900 rounded-2xl flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800 font-black text-slate-400 text-lg uppercase">{review.userName.charAt(0)}</div>
                   <div className="flex-grow">
                     <div className="flex justify-between items-start mb-2">
-                      <div><h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">{review.userName}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{new Date(review.createdAt).toLocaleDateString()}</p></div>
-                      <div className="flex gap-1">{[1, 2, 3, 4, 5].map((s) => (<Star key={s} className={`w-3 h-3 ${s <= review.rating ? 'text-amber-500 fill-amber-500' : 'text-slate-200 dark:text-slate-800'}`} />))}</div>
+                      <div><h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{review.userName}</h4><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{new Date(review.createdAt).toLocaleDateString()}</p></div>
+                      <div className="flex gap-1">{[1, 2, 3, 4, 5].map((s) => (<Star key={s} className={`w-3 h-3 ${s <= review.rating ? 'text-amber-500 fill-amber-500' : 'text-slate-200'}`} />))}</div>
                     </div>
                     <p className="text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium bg-slate-50 dark:bg-slate-900/30 p-5 rounded-2xl border border-slate-50 dark:border-slate-800/50">{review.comment}</p>
                   </div>
                 </div>
               )) : (
-                <div className="py-20 text-center border-4 border-dashed border-slate-50 dark:border-slate-900 rounded-[3rem]"><p className="text-slate-400 font-black uppercase text-xs tracking-[0.3em]">No reviews for this batch yet.</p></div>
+                <div className="py-20 text-center border-4 border-dashed border-slate-50 dark:border-slate-800 rounded-[3rem]"><p className="text-slate-400 font-black uppercase text-xs tracking-[0.3em]">No approved reviews for this batch yet.</p></div>
               )}
             </div>
 
@@ -253,7 +197,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
                       <label className="block text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-4">Rating</label>
                       <div className="flex gap-3">
                         {[1, 2, 3, 4, 5].map((s) => (
-                          <button key={s} type="button" onClick={() => setNewRating(s)} onMouseEnter={() => setHoveredRating(s)} onMouseLeave={() => setHoveredRating(0)} className="transition-transform active:scale-90">
+                          <button key={s} type="button" onClick={() => setNewRating(s)} onMouseEnter={() => setHoveredRating(s)} onMouseLeave={() => setHoveredRating(0)}>
                             <Star className={`w-6 h-6 ${(hoveredRating || newRating) >= s ? 'text-amber-400 fill-amber-400' : 'text-slate-800'}`} />
                           </button>
                         ))}
@@ -270,26 +214,13 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ products, addToCart, re
                 </div>
               ) : (
                 <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-10 shadow-sm text-center">
-                  <ShieldCheck className="w-12 h-12 text-slate-100 dark:text-slate-800 mx-auto mb-6" /><h3 className="text-sm font-black text-slate-900 dark:text-white mb-4 uppercase tracking-widest">Feedback Locked</h3><p className="text-[11px] text-slate-500 font-medium leading-relaxed mb-8">Only verified patrons who have completed a paid batch for this item can publish a review.</p>
-                  {!currentUser ? (<Link to="/login" className="text-[10px] font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-widest hover:underline">Sign in to Review</Link>) : (<Link to="/shop" className="text-[10px] font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-widest hover:underline">Browse Menu to Order</Link>)}
+                  <ShieldCheck className="w-12 h-12 text-slate-100 dark:text-slate-800 mx-auto mb-6" /><h3 className="text-sm font-black text-slate-900 dark:text-white mb-4 uppercase tracking-widest">Feedback Locked</h3><p className="text-[11px] text-slate-500 font-medium leading-relaxed mb-8">Only verified patrons who have completed a batch for this item can publish a review. Moderation by the Chef is required.</p>
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
-
-      {relatedProducts.length > 0 && (
-        <section className="bg-slate-50 dark:bg-slate-900/50 py-24 transition-colors">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-end justify-between mb-12">
-              <div><h2 className="text-3xl font-black text-slate-950 dark:text-white uppercase tracking-tighter mb-2">Complements</h2><p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Curated from the same category</p></div>
-              <Link to="/shop" className="group flex items-center gap-2 text-[11px] font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-widest">Explore Full Menu <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></Link>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">{relatedProducts.map(p => (<ProductCard key={p.id} product={p} onAddToCart={addToCart} />))}</div>
-          </div>
-        </section>
-      )}
     </div>
   );
 };

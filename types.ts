@@ -29,6 +29,7 @@ export interface Review {
   userName: string;
   rating: number;
   comment: string;
+  isApproved: boolean; // Added for moderation
   createdAt: string;
 }
 
@@ -48,7 +49,7 @@ export interface Product {
   image: string;
   category: string;
   isMondaySpecial: boolean;
-  isRamadanSpecial: boolean; // Added for seasonal Ramadan menu
+  isRamadanSpecial: boolean; 
   isNew: boolean;
   isSoldOut?: boolean; 
   stockStatus: StockStatus;
