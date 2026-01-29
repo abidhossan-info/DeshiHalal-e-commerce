@@ -46,7 +46,6 @@ const App: React.FC = () => {
 
   const isHeadChef = useMemo(() => currentUser?.role === UserRole.ADMIN, [currentUser]);
 
-  // Close menu on route change
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location]);
@@ -125,6 +124,14 @@ const App: React.FC = () => {
             localStorage.setItem('dh_user', JSON.stringify(profile));
             fetchUserData(session.user.id, profile.role);
           }
+        } else {
+          // Check for temporary guest session
+          const savedGuest = localStorage.getItem('dh_guest_user');
+          if (savedGuest) {
+            const guest = JSON.parse(savedGuest);
+            setCurrentUser(guest);
+            fetchUserData(guest.id, guest.role);
+          }
         }
 
         const [prods, tests, revs] = await Promise.all([
@@ -158,6 +165,7 @@ const App: React.FC = () => {
         setOrders([]);
         setNotifications([]);
         localStorage.removeItem('dh_user');
+        localStorage.removeItem('dh_guest_user');
         navigate('/');
       }
     });
@@ -222,25 +230,45 @@ const App: React.FC = () => {
 
   const requestOrder = async (asGuest: boolean = false, guestData?: { name: string, email: string, phone: string, address: string }) => {
     if (cart.length === 0) return;
+    
     const userId = currentUser?.id || `guest-${Date.now()}`;
     const customerName = currentUser?.name || guestData?.name || 'Guest';
+    const customerEmail = currentUser?.email || guestData?.email;
+    const customerPhone = currentUser?.phone || guestData?.phone;
+    const address = currentUser?.address || guestData?.address;
+
     const orderPayload = {
       userId,
       customerName,
-      customerEmail: currentUser?.email || guestData?.email,
-      customerPhone: currentUser?.phone || guestData?.phone,
+      customerEmail,
+      customerPhone,
       items: cart,
       total: cart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
       status: OrderStatus.PENDING,
-      address: currentUser?.address || guestData?.address,
+      address,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+
     const { error } = await supabase.from('orders').insert([orderPayload]);
     if (error) {
       alert("System could not dispatch batch.");
       return;
     }
+
+    if (asGuest) {
+      const guestUser: UserType = {
+        id: userId,
+        name: customerName,
+        email: customerEmail || '',
+        phone: customerPhone,
+        address: address,
+        role: UserRole.GUEST
+      };
+      setCurrentUser(guestUser);
+      localStorage.setItem('dh_guest_user', JSON.stringify(guestUser));
+    }
+
     setCart([]);
     addNotification(MOCK_ADMIN.id, 'New Batch Request', `Patron ${customerName} requested a new batch.`, 'ORDER_REQUEST');
     navigate('/account');
@@ -282,6 +310,13 @@ const App: React.FC = () => {
       } else if (status === OrderStatus.DELIVERED) {
         title = "Fresh Delivery Confirmed! ✨";
         message = `We hope you enjoyed your artisanal experience with batch #${orderId}. We'd love to hear your feedback!`;
+      }
+
+      // Simulate Email Dispatch for guests
+      if (targetOrder.userId.startsWith('guest-') && targetOrder.customerEmail) {
+        console.log(`[BOUTIQUE SIMULATION] Sending Email Update to: ${targetOrder.customerEmail}`);
+        console.log(`Subject: ${title}`);
+        console.log(`Body: ${message}`);
       }
 
       addNotification(targetOrder.userId, title, message, 'ORDER_UPDATE');
@@ -358,7 +393,7 @@ const App: React.FC = () => {
               </Link>
             )}
             
-            <div className="hidden sm:flex items-center gap-2">
+            <div className="flex items-center gap-2">
               {currentUser ? (
                 <div className="flex items-center gap-2">
                   <Link to="/account" className="relative p-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-full transition-colors">
@@ -376,7 +411,7 @@ const App: React.FC = () => {
                   </Link>
                 </div>
               ) : (
-                <Link to="/login" className="px-4 py-2 bg-emerald-800 text-white rounded-full text-[10px] font-black tracking-widest uppercase hover:bg-emerald-900 transition-all">Sign In</Link>
+                <Link to="/login" className="hidden sm:block px-4 py-2 bg-emerald-800 text-white rounded-full text-[10px] font-black tracking-widest uppercase hover:bg-emerald-900 transition-all">Sign In</Link>
               )}
             </div>
 
@@ -400,15 +435,11 @@ const App: React.FC = () => {
 
       {/* Mobile Menu Overlay */}
       <div className={`fixed inset-0 z-[60] lg:hidden transition-all duration-500 ease-in-out ${isMenuOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'}`}>
-         {/* Blur Backdrop */}
          <div className={`absolute inset-0 bg-slate-950/40 backdrop-blur-md transition-opacity duration-500 ${isMenuOpen ? 'opacity-100' : 'opacity-0'}`} onClick={() => setIsMenuOpen(false)}></div>
-         
-         {/* Slide Container */}
          <div className={`absolute top-0 right-0 h-full w-full max-w-[320px] bg-white dark:bg-slate-950 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] transition-transform duration-500 ease-out border-l border-slate-100 dark:border-slate-900 flex flex-col ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
             <div className="h-20 flex items-center px-6 border-b border-slate-50 dark:border-slate-900 shrink-0">
                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Boutique Navigation</span>
             </div>
-            
             <div className="flex-grow overflow-y-auto py-10 px-8 flex flex-col gap-8">
                {[
                  { label: 'Home', path: '/' },
@@ -425,7 +456,6 @@ const App: React.FC = () => {
                    <ChevronRight className="w-5 h-5 text-slate-200 dark:text-slate-800 group-hover:text-emerald-500 transition-colors" />
                  </Link>
                ))}
-               
                {isHeadChef && (
                  <Link to="/admin" className="flex items-center justify-between text-2xl font-black uppercase tracking-tighter text-amber-600 group mt-4 pt-8 border-t border-slate-50 dark:border-slate-900">
                    <span className="flex items-center gap-3"><ChefHat className="w-5 h-5" /> Command</span>
@@ -433,7 +463,6 @@ const App: React.FC = () => {
                  </Link>
                )}
             </div>
-
             <div className="p-8 border-t border-slate-50 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
                {currentUser ? (
                   <Link to="/account" className="flex items-center gap-4 group">

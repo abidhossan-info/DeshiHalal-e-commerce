@@ -1,10 +1,11 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Order, OrderStatus, UserRole, User as UserType, Product, StockStatus, Testimonial, CartItem, Review } from '../types';
 import { 
   X, ShieldCheck, ChevronRight, MessageCircle, 
   ChefHat, Mail, Loader2, Heart, Trash2, Flame, Truck, CheckCircle2, Clock, Ban, CheckCircle, Edit2, MoonStar, CreditCard, Box, Zap, ShoppingBag,
   Building2, Plus, Upload, RefreshCcw, Save, Star, BarChart3, TrendingUp, PieChart, Info, User,
-  Package
+  Package, Phone, ExternalLink
 } from 'lucide-react';
 import { supabase } from '../supabase';
 
@@ -70,7 +71,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setAdminNote(cleanNote);
       setDeliveryCompany(extractedCompany);
     }
-  }, [selectedOrderId, selectedOrder?.id]);
+  }, [selectedOrderId, selectedOrder?.id, selectedOrder]);
 
   const metrics = useMemo(() => {
     const totalRev = orders
@@ -229,7 +230,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {orders.map(order => (
                     <tr key={order.id} onClick={() => setSelectedOrderId(order.id)} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-all">
                       <td className="px-10 py-8 font-black text-slate-900 dark:text-white text-sm">{order.id}</td>
-                      <td className="px-10 py-8 font-bold uppercase text-[10px] text-slate-600 dark:text-slate-400">{order.customerName}</td>
+                      <td className="px-10 py-8">
+                        <div className="flex flex-col">
+                          <span className="font-bold uppercase text-[10px] text-slate-600 dark:text-slate-400">{order.customerName}</span>
+                          {order.userId.startsWith('guest-') && (
+                            <span className="text-[7px] font-black text-amber-600 uppercase tracking-widest mt-0.5">One-Time Guest</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-10 py-8 font-black text-slate-900 dark:text-white text-sm">${order.total.toFixed(2)}</td>
                       <td className="px-10 py-8">
                         <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border flex items-center gap-2 w-fit ${
@@ -300,11 +308,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 </div>
               ))}
-              {reviews.filter(r => !r.isApproved).length === 0 && (
-                <div className="md:col-span-2 py-20 text-center border-4 border-dashed border-slate-50 dark:border-slate-800 rounded-[3rem]">
-                  <p className="text-slate-400 font-black uppercase text-xs tracking-[0.3em]">No pending reviews for audit.</p>
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -357,39 +360,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               ))}
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 bg-white dark:bg-slate-900 p-10 rounded-[3.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
-                <div className="flex items-center gap-4 mb-10">
-                  <BarChart3 className="w-6 h-6 text-emerald-800" />
-                  <h3 className="text-lg font-black uppercase tracking-tight">Category Saturation</h3>
-                </div>
-                <div className="space-y-8">
-                  {Object.entries(metrics.catMap).map(([cat, count]) => (
-                    <div key={cat}>
-                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-3">
-                        <span className="text-slate-500">{cat}</span>
-                        <span className="text-slate-900 dark:text-white">{count} ARTISANS</span>
-                      </div>
-                      <div className="h-3 bg-slate-50 dark:bg-slate-950 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-800 rounded-full" style={{ width: `${((count as number) / Math.max(1, products.length)) * 100}%` }}></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="bg-slate-950 p-10 rounded-[3.5rem] text-white shadow-2xl relative overflow-hidden">
-                <PieChart className="w-12 h-12 text-emerald-500 mb-8" />
-                <h3 className="text-xl font-black uppercase tracking-tight mb-2">Growth Vector</h3>
-                <p className="text-slate-400 text-sm font-medium leading-relaxed mb-10">Our artisan network has expanded by 14% this quarter with new Ramadan and Monday exclusives.</p>
-                <div className="flex items-center gap-4 py-4 px-6 bg-white/5 rounded-2xl border border-white/10">
-                  <TrendingUp className="w-5 h-5 text-emerald-400" />
-                  <span className="text-xs font-black uppercase tracking-widest">+2.4k Patron Engagement</span>
-                </div>
-                <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px]"></div>
-              </div>
-            </div>
           </div>
         )}
       </div>
@@ -411,15 +381,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
              </div>
              
              <div className="p-8 space-y-8 overflow-y-auto flex-grow no-scrollbar">
-                <div className="grid grid-cols-2 gap-6">
-                   <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Patron</p>
-                      <span className="font-black text-sm text-slate-900 dark:text-white uppercase">{selectedOrder.customerName}</span>
+                {/* Patron Contact Section (Especially for Guests) */}
+                <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
+                   <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Patron Credentials</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="flex items-center gap-3">
+                         <User className="w-4 h-4 text-emerald-800" />
+                         <span className="text-sm font-bold text-slate-900 dark:text-white uppercase">{selectedOrder.customerName}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                         <Phone className="w-4 h-4 text-emerald-800" />
+                         <span className="text-sm font-bold text-slate-900 dark:text-white">{selectedOrder.customerPhone || 'Not provided'}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                         <Mail className="w-4 h-4 text-emerald-800" />
+                         <span className="text-sm font-bold text-slate-900 dark:text-white">{selectedOrder.customerEmail || 'Not provided'}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                         <Building2 className="w-4 h-4 text-emerald-800" />
+                         <span className="text-sm font-bold text-slate-900 dark:text-white truncate">{selectedOrder.address || 'Pickup Selected'}</span>
+                      </div>
                    </div>
-                   <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Value</p>
-                      <span className="text-2xl font-black text-emerald-800 dark:text-emerald-500 tabular-nums">${adjustedTotal.toFixed(2)}</span>
-                   </div>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-950 p-5 rounded-2xl border border-slate-100 dark:border-slate-800">
+                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Audit Value</p>
+                   <span className="text-2xl font-black text-emerald-800 dark:text-emerald-500 tabular-nums">${adjustedTotal.toFixed(2)}</span>
                 </div>
 
                 {deliveryCompany && (
@@ -433,7 +420,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 )}
 
                 <div>
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Batch Composition (Verify Quality)</p>
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Batch Composition</p>
                    <div className="space-y-3">
                       {auditItems.map((item, i) => (
                         <div 
@@ -456,7 +443,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {selectedOrder.status === OrderStatus.PROCESSING && (
                   <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
                     <label className="text-[10px] font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-widest mb-1 flex items-center gap-2">
-                      <Building2 className="w-4 h-4" /> Delivery Company Name (Required to transition)
+                      <Building2 className="w-4 h-4" /> Delivery Company Name
                     </label>
                     <input type="text" value={deliveryCompany} onChange={e => setDeliveryCompany(e.target.value)} placeholder="e.g. DoorDash, Boutique Courier..." className="w-full p-4 bg-indigo-50/30 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all" />
                   </div>
@@ -466,7 +453,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <label className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-2">
                     <MessageCircle className="w-4 h-4" /> Chef Directive
                   </label>
-                  <textarea value={adminNote} onChange={e => setAdminNote(e.target.value)} placeholder="Dispatch instructions or notes..." className="w-full p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl text-sm font-bold text-slate-900 dark:text-white outline-none h-28 resize-none" />
+                  <textarea value={adminNote} onChange={e => setAdminNote(e.target.value)} placeholder="Instructions will be sent to patron..." className="w-full p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl text-sm font-bold text-slate-900 dark:text-white outline-none h-28 resize-none" />
                 </div>
              </div>
 
@@ -511,23 +498,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Testimonial Creation Modal */}
-      {testimonialModalMode && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => !isProcessingApproval && setTestimonialModalMode(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] p-10 shadow-2xl border border-slate-100 dark:border-slate-800">
-            <h3 className="text-2xl font-black uppercase mb-8">{testimonialModalMode === 'EDIT' ? 'Modify Sentiment' : 'Record Sentiment'}</h3>
-            <form onSubmit={handleTestimonialSave} className="space-y-6">
-              <input value={testimonialForm.name} onChange={e => setTestimonialForm({...testimonialForm, name: e.target.value})} placeholder="Patron Name" required className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none" />
-              <input value={testimonialForm.role} onChange={e => setTestimonialForm({...testimonialForm, role: e.target.value})} placeholder="Identity (e.g. Seattle, WA)" required className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none" />
-              <textarea value={testimonialForm.text} onChange={e => setTestimonialForm({...testimonialForm, text: e.target.value})} placeholder="Patron's words..." required className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-medium h-32 outline-none resize-none" />
-              <button type="submit" disabled={isProcessingApproval} className="w-full py-5 bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl">{isProcessingApproval ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className="w-4 h-4" />} Publish Sentiment</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Artisan Creation Modal (Bypass) */}
+      {/* Artisan Creation Modal */}
       {isAddingProduct && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => !isProcessingApproval && setIsAddingProduct(false)}></div>
@@ -544,10 +515,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                  <input type="file" ref={fileInputRef} onChange={handleImageFileChange} className="hidden" />
                </div>
                <textarea value={productForm.description} onChange={e => setProductForm({...productForm, description: e.target.value})} placeholder="Culinary narrative..." className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-medium h-24 outline-none resize-none" />
-               <div className="grid grid-cols-2 gap-4">
-                  <label className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500"><input type="checkbox" checked={productForm.isMondaySpecial} onChange={e => setProductForm({...productForm, isMondaySpecial: e.target.checked})} /> Monday Special</label>
-                  <label className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500"><input type="checkbox" checked={productForm.isRamadanSpecial} onChange={e => setProductForm({...productForm, isRamadanSpecial: e.target.checked})} /> Ramadan Special</label>
-               </div>
                <button type="submit" disabled={isProcessingApproval || isUploadingImage} className="w-full py-5 bg-emerald-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50">
                  {isProcessingApproval ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                  Commit to Catalog
