@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ShoppingBag, ArrowRight, Minus, Plus, Trash2, ClipboardList, ShieldCheck, Clock, CheckCircle2, AlertTriangle, X, User, MapPin, Mail, Phone, Fingerprint } from 'lucide-react';
+import { ShoppingBag, ArrowRight, Minus, Plus, Trash2, ClipboardList, ShieldCheck, Clock, CheckCircle2, AlertTriangle, X, User, MapPin, Mail, Phone, Fingerprint, Sparkles } from 'lucide-react';
 import { CartItem, User as UserType } from '../types';
 import { Link } from 'react-router-dom';
 
@@ -48,7 +48,6 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      {/* Sales-Friendly Stepper */}
       <div className="mb-16 max-w-4xl mx-auto">
         <div className="flex items-center justify-between relative">
           <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 dark:bg-slate-800 -translate-y-1/2 z-0"></div>
@@ -75,7 +74,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
           className="flex items-center gap-2 text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-[0.2em] bg-rose-50 dark:bg-rose-950/30 px-6 py-3 rounded-2xl transition-all hover:bg-rose-100 dark:hover:bg-rose-900/40 active:scale-95 group shadow-sm border border-rose-100 dark:border-rose-900/50"
         >
           <Trash2 className="w-4 h-4 group-hover:rotate-12 transition-transform" /> 
-          Clear Current Batch
+          Clear Current Selection
         </button>
       </div>
       
@@ -112,19 +111,19 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
 
         <div className="lg:col-span-1">
           <div className="bg-slate-950 rounded-[2.5rem] p-8 sm:p-10 text-white sticky top-28 shadow-2xl border border-slate-900">
-            <h2 className="text-2xl font-black mb-8 uppercase tracking-tight">Order Summary</h2>
+            <h2 className="text-2xl font-black mb-8 uppercase tracking-tight">Summary</h2>
             <div className="space-y-4 mb-8">
               <div className="flex justify-between text-slate-400 font-bold text-sm">
                 <span>Items Subtotal</span>
                 <span className="text-white">${total.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-400 font-bold text-sm">
-                <span>Quality Check</span>
-                <span className="text-emerald-400 uppercase text-[10px] tracking-widest font-black">Free Guarantee</span>
+                <span>Kitchen Audit</span>
+                <span className="text-emerald-400 uppercase text-[10px] tracking-widest font-black">Mandatory Protocol</span>
               </div>
               <div className="h-px bg-slate-800 my-6"></div>
               <div className="flex justify-between text-2xl font-black">
-                <span className="uppercase tracking-tighter">Total</span>
+                <span className="uppercase tracking-tighter">Total Est.</span>
                 <span className="text-emerald-400">${total.toFixed(2)}</span>
               </div>
             </div>
@@ -135,13 +134,13 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
                   <ClipboardList className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div className="text-[10px] text-slate-300 leading-relaxed font-bold">
-                  <span className="text-white font-black block mb-1 uppercase tracking-widest text-xs">Chef Approval Required</span>
-                  We only accept payment after the Chef verifies ingredient freshness for your specific batch. 
+                  <span className="text-white font-black block mb-1 uppercase tracking-widest text-xs">Approval Flow Enabled</span>
+                  Your payment will be requested <span className="text-emerald-400 italic">only after</span> our Head Chef confirms ingredient quality for this batch.
                 </div>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full w-fit">
-                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400">Halal Certified Ingredients</span>
+                <Sparkles className="w-3 h-3 text-amber-500" />
+                <span className="text-[8px] font-black uppercase tracking-widest text-amber-500">Zero Upfront Charges</span>
               </div>
             </div>
 
@@ -150,7 +149,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
                 onClick={() => requestOrder(false)}
                 className="w-full py-5 bg-emerald-700 text-white rounded-2xl font-black text-xs tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-950/40 flex items-center justify-center gap-3 group uppercase active:scale-95"
               >
-                {currentUser ? 'Request Order Approval' : 'Sign In & Request'}
+                {currentUser ? 'Request Batch Approval' : 'Sign In & Request'}
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
               
@@ -160,13 +159,13 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
                   className="w-full py-5 bg-transparent border-2 border-slate-800 text-slate-300 rounded-2xl font-black text-xs tracking-[0.2em] hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-3 group uppercase active:scale-95"
                 >
                   <User className="w-5 h-5" />
-                  Guest Request Approval
+                  Guest Approval Request
                 </button>
               )}
             </div>
 
             <p className="text-[8px] text-center text-slate-500 font-black uppercase tracking-[0.2em] mt-6 leading-relaxed">
-              No payment required at this step. <br />Approval typically within 30-60 mins.
+              No financial commitment is required at this stage. <br />Chef audit usually takes 30-60 minutes.
             </p>
           </div>
         </div>
@@ -187,7 +186,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
                   </div>
                   <div>
                     <h3 className="text-2xl font-black text-slate-950 dark:text-white uppercase tracking-tight leading-none">Guest Protocol</h3>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">One-time boutique access</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Temporary Batch Identity</p>
                   </div>
                </div>
                <button onClick={() => setShowGuestModal(false)} className="p-3 bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-rose-600 rounded-2xl transition-colors"><X className="w-6 h-6" /></button>
@@ -258,7 +257,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
                   type="submit"
                   className="w-full py-6 bg-emerald-800 text-white rounded-[1.5rem] font-black text-xs tracking-[0.3em] uppercase transition-all shadow-2xl shadow-emerald-900/40 flex items-center justify-center gap-4 active:scale-95"
                 >
-                  <ArrowRight className="w-5 h-5" /> Submit Batch Request
+                  <ArrowRight className="w-5 h-5" /> Submit Approval Request
                 </button>
               </div>
             </form>
@@ -273,7 +272,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
             className="absolute inset-0 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300" 
             onClick={() => setShowConfirmClear(false)}
           ></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-10 md:p-12 shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300">
+          <div className="relative bg-white dark:bg-slate-900 w-full max-md rounded-[2.5rem] p-10 md:p-12 shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300">
             <button 
               onClick={() => setShowConfirmClear(false)}
               className="absolute top-8 right-8 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
@@ -285,9 +284,9 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
               <div className="w-20 h-20 bg-rose-50 dark:bg-rose-950/30 rounded-3xl flex items-center justify-center text-rose-600 mx-auto mb-8 border border-rose-100 dark:border-rose-900 shadow-inner">
                 <AlertTriangle className="w-10 h-10 animate-pulse" />
               </div>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-4">Are you sure?</h3>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-4">Reset Selection?</h3>
               <p className="text-[13px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
-                Confirming this action will remove <span className="text-slate-900 dark:text-white font-black underline decoration-rose-500/30">all artisanal items</span> from your current batch request. This curated selection cannot be restored once cleared.
+                Confirming this action will remove <span className="text-slate-900 dark:text-white font-black underline decoration-rose-500/30">every artisanal item</span> from your current session.
               </p>
             </div>
             
@@ -296,13 +295,13 @@ const CartPage: React.FC<CartPageProps> = ({ cart, removeFromCart, updateQuantit
                 onClick={() => setShowConfirmClear(false)} 
                 className="order-2 sm:order-1 py-4.5 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-300 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95"
               >
-                No, Keep My Batch
+                Cancel
               </button>
               <button 
                 onClick={() => { clearCart(); setShowConfirmClear(false); }} 
                 className="order-1 sm:order-2 py-4.5 bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-rose-900/20 transition-all hover:bg-rose-700 active:scale-95 flex items-center justify-center gap-2"
               >
-                <Trash2 className="w-3.5 h-3.5" /> Yes, Clear All
+                <Trash2 className="w-3.5 h-3.5" /> Clear All
               </button>
             </div>
           </div>

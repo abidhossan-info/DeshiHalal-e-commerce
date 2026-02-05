@@ -29,7 +29,7 @@ export interface Review {
   userName: string;
   rating: number;
   comment: string;
-  isApproved: boolean; // Added for moderation
+  isApproved: boolean;
   createdAt: string;
 }
 
@@ -71,6 +71,7 @@ export interface Order {
   status: OrderStatus;
   adminNote?: string;
   address?: string;
+  deliveryCompany?: string;
   paymentLinkSent?: boolean;
   createdAt: string;
   updatedAt: string;

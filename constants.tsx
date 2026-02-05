@@ -159,7 +159,7 @@ export const INITIAL_TESTIMONIALS: Testimonial[] = [
 ];
 
 export const MOCK_ADMIN: User = {
-  id: '00000000-0000-0000-0000-000000000000', // Valid UUID for Bypass
+  id: '00000000-0000-0000-0000-000000000000',
   email: 'admin@deshi.com',
   name: 'Head Chef',
   role: UserRole.ADMIN
