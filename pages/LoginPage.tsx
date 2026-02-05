@@ -43,11 +43,14 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
 
     try {
       if (authMode === 'LOGIN') {
-        const { error: authError } = await supabase.auth.signInWithPassword({
+        const { data, error: authError } = await supabase.auth.signInWithPassword({
           email,
           password
         });
         if (authError) throw authError;
+        
+        // On success, navigate to the user dashboard
+        navigate('/account');
       } else if (authMode === 'SIGNUP') {
         const { error: authError } = await supabase.auth.signUp({
           email,
@@ -72,12 +75,12 @@ const LoginPage: React.FC<{ setCurrentUser: (u: UserType) => void }> = ({ setCur
 
   const handleSocialLogin = (platform: 'Google' | 'Facebook') => {
     setIsLoading(true);
-    // Simulate social auth delay
+    // Simulate social auth delay and redirect to dashboard
     setTimeout(() => {
       setCurrentUser(MOCK_USER);
       localStorage.setItem('dh_user', JSON.stringify(MOCK_USER));
       setIsLoading(false);
-      navigate('/');
+      navigate('/account');
     }, 1200);
   };
 

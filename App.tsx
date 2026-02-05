@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation } from 'react-router-dom';
 import { ShoppingBag, Bell, Sun, Moon, UtensilsCrossed, ChefHat, MoonStar, Menu, X, ChevronRight, Sparkles } from 'lucide-react';
-import { Product, Order, OrderStatus, UserRole, User as UserType, CartItem, Notification, Review, Testimonial } from './types';
+import { Product, Order, OrderStatus, UserRole, User as UserType, CartItem, Notification, Review, Testimonial, StockStatus } from './types';
 import { INITIAL_PRODUCTS, INITIAL_TESTIMONIALS, MOCK_ADMIN } from './constants';
 import { supabase } from './supabase';
+import { GoogleGenAI } from "@google/genai";
 
 // --- Pages ---
 import Home from './pages/Home';
@@ -46,25 +47,62 @@ const App: React.FC = () => {
 
   const isHeadChef = useMemo(() => currentUser?.role === UserRole.ADMIN, [currentUser]);
 
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [location]);
+  // --- UUID Regex for Validation ---
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  // --- Unified Mapping Utilities ---
+  const mapDbOrder = (dbOrder: any): Order => ({
+    id: dbOrder.id,
+    userId: dbOrder.user_id,
+    customerName: dbOrder.customer_name,
+    customerEmail: dbOrder.customer_email,
+    customerPhone: dbOrder.customer_phone,
+    items: Array.isArray(dbOrder.items) ? dbOrder.items : [],
+    total: Number(dbOrder.total) || 0,
+    status: dbOrder.status as OrderStatus,
+    adminNote: dbOrder.admin_note,
+    address: dbOrder.address,
+    paymentLinkSent: dbOrder.payment_link_sent,
+    createdAt: dbOrder.created_at,
+    updatedAt: dbOrder.updated_at
+  });
+
+  const mapDbProduct = (p: any): Product => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    price: Number(p.price) || 0,
+    image: p.image,
+    category: p.category,
+    isMondaySpecial: p.monday_special ?? false,
+    isRamadanSpecial: p.ramadan_special ?? false,
+    isNew: p.is_new ?? false,
+    stockStatus: (p.stock_status || StockStatus.IN_STOCK) as StockStatus
+  });
 
   const fetchUserData = useCallback(async (userId: string, role: UserRole) => {
-    const ordersQuery = supabase.from('orders').select('*').order('createdAt', { ascending: false });
-    const notifsQuery = supabase.from('notifications').select('*').eq('userId', userId).order('createdAt', { ascending: false });
+    const isUuid = UUID_REGEX.test(userId);
+    let ordersQuery = supabase.from('orders').select('*').order('created_at', { ascending: false });
+    let notifsQuery = supabase.from('notifications').select('*').eq('userId', userId).order('createdAt', { ascending: false });
 
     if (role !== UserRole.ADMIN) {
-      ordersQuery.eq('userId', userId);
+      if (isUuid) {
+        ordersQuery = ordersQuery.eq('user_id', userId);
+      } else {
+        setOrders([]);
+        return;
+      }
     }
 
     const [ordersRes, notifsRes] = await Promise.all([ordersQuery, notifsQuery]);
-    if (ordersRes.data) setOrders(ordersRes.data);
+    if (ordersRes.data) setOrders(ordersRes.data.map(mapDbOrder));
     if (notifsRes.data) setNotifications(notifsRes.data);
   }, []);
 
   const fetchProfile = useCallback(async (userId: string, retryCount = 0): Promise<UserType | null> => {
     if (userId === MOCK_ADMIN.id) return MOCK_ADMIN;
+    if (!UUID_REGEX.test(userId)) return null;
+
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
     if (error && retryCount < 3) {
       await new Promise(res => setTimeout(res, 500));
@@ -90,7 +128,6 @@ const App: React.FC = () => {
           if (savedGuest) {
             const guest = JSON.parse(savedGuest);
             setCurrentUser(guest);
-            fetchUserData(guest.id, guest.role);
           }
         }
 
@@ -99,7 +136,7 @@ const App: React.FC = () => {
           supabase.from('testimonials').select('*'),
           supabase.from('reviews').select('*')
         ]);
-        setProducts(prods.data && prods.data.length > 0 ? prods.data : INITIAL_PRODUCTS);
+        setProducts(prods.data && prods.data.length > 0 ? prods.data.map(mapDbProduct) : INITIAL_PRODUCTS);
         setTestimonials(tests.data && tests.data.length > 0 ? tests.data : INITIAL_TESTIMONIALS);
         setReviews(revs.data || []);
 
@@ -111,6 +148,20 @@ const App: React.FC = () => {
     };
 
     initializeApp();
+
+    const ordersSubscription = supabase
+      .channel('public:orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setOrders(prev => [mapDbOrder(payload.new), ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          const updated = mapDbOrder(payload.new);
+          setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
+        } else if (payload.eventType === 'DELETE') {
+          setOrders(prev => prev.filter(o => o.id !== payload.old.id));
+        }
+      })
+      .subscribe();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
@@ -130,7 +181,10 @@ const App: React.FC = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(ordersSubscription);
+    };
   }, [fetchProfile, fetchUserData, navigate]);
 
   useEffect(() => {
@@ -144,15 +198,19 @@ const App: React.FC = () => {
   }, [isDarkMode]);
 
   const addNotification = async (userId: string, title: string, message: string, type: Notification['type']) => {
-    const newNotif: Omit<Notification, 'id'> = {
-      userId,
+    const isUuid = UUID_REGEX.test(userId);
+    const newNotif = {
+      userId: isUuid ? userId : MOCK_ADMIN.id,
       title,
       message,
       type,
       read: false,
       createdAt: new Date().toISOString()
     };
-    await supabase.from('notifications').insert([newNotif]);
+    const { data, error } = await supabase.from('notifications').insert([newNotif]).select().single();
+    if (!error && data) {
+      setNotifications(prev => [data, ...prev]);
+    }
   };
 
   const markNotificationRead = async (id: string) => {
@@ -190,33 +248,43 @@ const App: React.FC = () => {
 
   const requestOrder = async (asGuest: boolean = false, guestData?: { name: string, email: string, phone: string, address: string }) => {
     if (cart.length === 0) return;
-    const userId = currentUser?.id || `guest-${Date.now()}`;
-    const orderPayload = {
-      userId,
-      customerName: currentUser?.name || guestData?.name || 'Guest',
-      customerEmail: currentUser?.email || guestData?.email,
-      customerPhone: currentUser?.phone || guestData?.phone,
-      items: cart,
+    
+    // DB UUID Constraint Fix
+    const isUuid = currentUser?.id && UUID_REGEX.test(currentUser.id);
+    const dbUserId = isUuid ? currentUser.id : null;
+
+    const dbPayload = {
+      user_id: dbUserId,
+      customer_name: currentUser?.name || guestData?.name || 'Guest',
+      customer_email: currentUser?.email || guestData?.email,
+      customer_phone: currentUser?.phone || guestData?.phone,
+      items: cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity
+      })),
       total: cart.reduce((acc, item) => acc + (item.price * item.quantity), 0),
       status: OrderStatus.PENDING,
       address: currentUser?.address || guestData?.address,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    const { error } = await supabase.from('orders').insert([orderPayload]);
+    const { data, error } = await supabase.from('orders').insert([dbPayload]).select().single();
     if (error) {
-      alert("System could not dispatch batch.");
+      console.error("Supabase Insertion Error:", error.message);
+      alert(`Batch could not be persisted: ${error.message}`);
       return;
     }
 
     if (asGuest) {
       const guestUser: UserType = {
-        id: userId,
-        name: orderPayload.customerName,
-        email: orderPayload.customerEmail || '',
-        phone: orderPayload.customerPhone,
-        address: orderPayload.address,
+        id: `guest-${Date.now()}`,
+        name: dbPayload.customer_name,
+        email: dbPayload.customer_email || '',
+        phone: dbPayload.customer_phone || '',
+        address: dbPayload.address || '',
         role: UserRole.GUEST
       };
       setCurrentUser(guestUser);
@@ -224,34 +292,46 @@ const App: React.FC = () => {
     }
 
     setCart([]);
-    addNotification(MOCK_ADMIN.id, 'New Batch Request', `Patron requested a new batch.`, 'ORDER_REQUEST');
+    addNotification(MOCK_ADMIN.id, 'New Batch Request', `Patron ${dbPayload.customer_name} requested a new batch.`, 'ORDER_REQUEST');
     navigate('/account');
   };
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus, note?: string, updatedItems?: CartItem[]) => {
     const targetOrder = orders.find(o => o.id === orderId);
-    if (!targetOrder) return;
+    if (!targetOrder) throw new Error("Batch not found.");
+
     const finalItems = updatedItems || targetOrder.items;
     const finalTotal = finalItems.reduce((acc, item) => item.isApproved !== false ? acc + (item.price * item.quantity) : acc, 0);
     
-    const { error } = await supabase
-      .from('orders')
-      .update({ 
-        status, 
-        adminNote: note, 
-        items: finalItems,
-        total: finalTotal,
-        updatedAt: new Date().toISOString() 
-      })
-      .eq('id', orderId);
+    const dbUpdate = { 
+      status, 
+      admin_note: note, 
+      items: finalItems,
+      total: finalTotal,
+      updated_at: new Date().toISOString() 
+    };
 
-    if (!error) {
-      addNotification(targetOrder.userId, `Order Update: ${status}`, `Your batch ${orderId} has been updated.`, 'ORDER_UPDATE');
+    const { error } = await supabase.from('orders').update(dbUpdate).eq('id', orderId);
+    if (error) {
+      console.error("Order Update Conflict:", error);
+      throw error;
+    }
+
+    if (targetOrder.userId && UUID_REGEX.test(targetOrder.userId)) {
+       await addNotification(targetOrder.userId, `Order Update: ${status}`, `Your batch has been updated.`, 'ORDER_UPDATE');
     }
   };
 
   const addReview = async (reviewData: Omit<Review, 'id' | 'createdAt' | 'isApproved'>) => {
-    const newReview = { ...reviewData, isApproved: false, createdAt: new Date().toISOString() };
+    const newReview = { 
+      productId: reviewData.productId,
+      userId: reviewData.userId,
+      userName: reviewData.userName,
+      rating: reviewData.rating,
+      comment: reviewData.comment,
+      isApproved: false, 
+      createdAt: new Date().toISOString() 
+    };
     const { data, error } = await supabase.from('reviews').insert([newReview]).select().single();
     if (!error && data) {
       setReviews(prev => [...prev, data]);
@@ -260,7 +340,7 @@ const App: React.FC = () => {
   };
 
   const updateCurrentUser = async (userData: Partial<UserType>) => {
-    if (!currentUser) return;
+    if (!currentUser || !UUID_REGEX.test(currentUser.id)) return;
     const { error } = await supabase.from('profiles').update(userData).eq('id', currentUser.id);
     if (!error) {
       const updatedUser = { ...currentUser, ...userData };
@@ -340,58 +420,6 @@ const App: React.FC = () => {
           </div>
         </div>
       </nav>
-
-      {/* Mobile Menu */}
-      <div className={`fixed inset-0 z-[100] transition-all duration-500 ${isMenuOpen ? 'visible' : 'invisible'}`}>
-        <div className={`absolute inset-0 bg-slate-950/40 backdrop-blur-md transition-opacity duration-500 ${isMenuOpen ? 'opacity-100' : 'opacity-0'}`} onClick={() => setIsMenuOpen(false)}></div>
-        <div className={`absolute top-0 right-0 h-full w-full max-w-[320px] bg-white dark:bg-slate-950 shadow-2xl transition-transform duration-500 ease-out ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          <div className="p-8 flex flex-col h-full">
-            <div className="flex justify-between items-center mb-12">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Boutique Navigation</span>
-              <button onClick={() => setIsMenuOpen(false)} className="p-2 bg-slate-50 dark:bg-slate-900 rounded-full"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="space-y-8">
-              {[
-                { label: 'Home', path: '/' },
-                { label: 'Ramadan Menu', path: '/ramadan-menu', icon: <MoonStar className="w-4 h-4 text-amber-500" /> },
-                { label: 'Monday Menu', path: '/monday-menu' },
-                { label: 'Artisan Shop', path: '/shop' }
-              ].map((item) => (
-                <Link 
-                  key={item.path} 
-                  to={item.path} 
-                  className="flex items-center justify-between text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white group"
-                >
-                  <span className="flex items-center gap-3">{item.icon}{item.label}</span>
-                  <ChevronRight className="w-5 h-5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                </Link>
-              ))}
-              {isHeadChef && (
-                <Link to="/admin" className="flex items-center gap-3 text-2xl font-black uppercase tracking-tighter text-amber-600 pt-8 border-t border-slate-100 dark:border-slate-800">
-                  <ChefHat className="w-6 h-6" /> Command
-                </Link>
-              )}
-            </div>
-            <div className="mt-auto">
-               {currentUser ? (
-                  <Link to="/account" className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-800 flex items-center justify-center text-white font-black text-xl overflow-hidden">
-                       {currentUser.avatar ? <img src={currentUser.avatar} className="w-full h-full object-cover" /> : currentUser.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-slate-900 dark:text-white uppercase leading-none mb-1">{currentUser.name}</p>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">View Portfolio</p>
-                    </div>
-                  </Link>
-               ) : (
-                  <Link to="/login" className="w-full py-5 bg-emerald-800 text-white rounded-[1.5rem] font-black text-xs tracking-widest uppercase flex items-center justify-center gap-3 shadow-xl">
-                    <Sparkles className="w-4 h-4" /> Patron Login
-                  </Link>
-               )}
-            </div>
-          </div>
-        </div>
-      </div>
 
       <main className="flex-grow">
         <Routes>
