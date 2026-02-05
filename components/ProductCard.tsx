@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Tag, CheckCircle, ShoppingBag, AlertTriangle, Eye, ShieldCheck } from 'lucide-react';
+import { Plus, Tag, CheckCircle, ShoppingBag, AlertTriangle, Eye, ShieldCheck, MoonStar } from 'lucide-react';
 import { Product, StockStatus } from '../types';
 
 interface ProductCardProps {
@@ -32,14 +32,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
 
         {/* Dynamic Status Badges */}
         <div className="absolute top-5 left-5 flex flex-col gap-2">
+           {product.isRamadanSpecial && (
+             <span className="bg-amber-600 text-white text-[9px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-[0_0_20px_rgba(217,119,6,0.5)] flex items-center gap-2 ring-2 ring-white/20 animate-in fade-in zoom-in duration-500">
+               <MoonStar className="w-3 h-3 fill-amber-100" /> Ramadan Special
+             </span>
+           )}
            {product.isNew && (
              <span className="bg-emerald-800 text-white text-[9px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-xl ring-2 ring-white/20">
                New Batch
-             </span>
-           )}
-           {product.isRamadanSpecial && (
-             <span className="bg-amber-600 text-white text-[9px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-xl flex items-center gap-2 ring-2 ring-white/20">
-               <Tag className="w-3 h-3" /> Ramadan
              </span>
            )}
         </div>
