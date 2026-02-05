@@ -42,6 +42,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [productSearch, setProductSearch] = useState('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Testimonial States
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
@@ -61,6 +62,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setAdminNote('');
     }
   }, [selectedOrderId, selectedOrder]);
+
+  useEffect(() => {
+    if (isProductModalOpen) {
+      setImagePreview(editingProduct?.image || null);
+    } else {
+      setImagePreview(null);
+    }
+  }, [isProductModalOpen, editingProduct]);
 
   const adjustedTotal = useMemo(() => {
     return auditItems.reduce((acc, item) => item.isApproved !== false ? acc + (item.price * item.quantity) : acc, 0);
@@ -110,6 +119,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // --- Inventory Handlers ---
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Delicacy image is too large. Limit is 5MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSaveProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsProcessingApproval(true);
@@ -123,7 +147,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       isMondaySpecial: formData.get('isMondaySpecial') === 'on',
       isRamadanSpecial: formData.get('isRamadanSpecial') === 'on',
       isNew: formData.get('isNew') === 'on',
-      image: formData.get('image') as string || (editingProduct?.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600')
+      image: imagePreview || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600'
     };
 
     try {
@@ -138,8 +162,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
       setIsProductModalOpen(false);
       setEditingProduct(null);
+      setImagePreview(null);
     } catch (err) {
       console.error("Product Save Error:", err);
+      alert("Failed to archive delicacy. Ensure all mandatory attributes are present.");
     } finally {
       setIsProcessingApproval(false);
     }
@@ -671,29 +697,63 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
            <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] p-10 md:p-12 shadow-2xl border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 overflow-y-auto max-h-[90vh] no-scrollbar">
               <div className="flex justify-between items-center mb-10">
                  <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{editingProduct ? 'Edit Delicacy' : 'Add New Delicacy'}</h2>
-                 <button onClick={() => setIsProductModalOpen(false)} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl"><X className="w-6 h-6" /></button>
+                 <button onClick={() => setIsProductModalOpen(false)} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl transition-colors hover:text-rose-600"><X className="w-6 h-6" /></button>
               </div>
-              <form onSubmit={handleSaveProduct} className="space-y-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <form onSubmit={handleSaveProduct} className="space-y-8">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2">
                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Delicacy Name</label>
-                       <input name="name" defaultValue={editingProduct?.name} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none" required />
+                       <input name="name" defaultValue={editingProduct?.name} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-700/10 transition-all" required />
                     </div>
                     <div className="space-y-2">
                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Price ($)</label>
-                       <input name="price" type="number" step="0.01" defaultValue={editingProduct?.price} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none" required />
+                       <input name="price" type="number" step="0.01" defaultValue={editingProduct?.price} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-700/10 transition-all" required />
+                    </div>
+                 </div>
+
+                 <div className="space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Delicacy Image</label>
+                    <div className="relative group/upload">
+                       <div className={`w-full h-56 rounded-[2.5rem] border-2 border-dashed flex flex-col items-center justify-center transition-all overflow-hidden relative ${imagePreview ? 'border-emerald-500 bg-emerald-50/10' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950'}`}>
+                          {imagePreview ? (
+                             <div className="relative w-full h-full">
+                                <img src={imagePreview} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/upload:opacity-100 flex items-center justify-center transition-opacity backdrop-blur-sm">
+                                   <div className="bg-white/90 dark:bg-slate-950/90 p-4 rounded-2xl shadow-2xl flex items-center gap-2">
+                                      <RefreshCcw className="w-4 h-4 text-emerald-800" />
+                                      <p className="text-[9px] font-black text-slate-900 dark:text-white uppercase tracking-widest">Update Asset</p>
+                                   </div>
+                                </div>
+                             </div>
+                          ) : (
+                             <>
+                                <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-center mb-4 transition-transform group-hover/upload:scale-110">
+                                   <Upload className="w-6 h-6 text-emerald-700" />
+                                </div>
+                                <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest">Select Visual Asset</p>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">PNG, JPG up to 5MB</p>
+                             </>
+                          )}
+                          <input 
+                             type="file" 
+                             accept="image/*"
+                             onChange={handleFileChange}
+                             className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                             aria-label="Upload product image"
+                          />
+                       </div>
                     </div>
                  </div>
 
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Description</label>
-                    <textarea name="description" defaultValue={editingProduct?.description} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold h-32 outline-none resize-none" required />
+                    <textarea name="description" defaultValue={editingProduct?.description} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold h-32 outline-none resize-none focus:ring-4 focus:ring-emerald-700/10 transition-all" required />
                  </div>
 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2">
                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category</label>
-                       <select name="category" defaultValue={editingProduct?.category || 'NON VEG'} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none appearance-none">
+                       <select name="category" defaultValue={editingProduct?.category || 'NON VEG'} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none appearance-none focus:ring-4 focus:ring-emerald-700/10 transition-all">
                           <option value="NON VEG">NON VEG</option>
                           <option value="VEG">VEG</option>
                           <option value="SWEETS">SWEETS</option>
@@ -702,7 +762,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                     <div className="space-y-2">
                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Stock Status</label>
-                       <select name="stockStatus" defaultValue={editingProduct?.stockStatus || StockStatus.IN_STOCK} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none appearance-none">
+                       <select name="stockStatus" defaultValue={editingProduct?.stockStatus || StockStatus.IN_STOCK} className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none appearance-none focus:ring-4 focus:ring-emerald-700/10 transition-all">
                           <option value={StockStatus.IN_STOCK}>IN STOCK</option>
                           <option value={StockStatus.LOW_STOCK}>LOW STOCK</option>
                           <option value={StockStatus.SOLD_OUT}>SOLD OUT</option>
@@ -710,38 +770,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                  </div>
 
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Image URL</label>
-                    <div className="relative">
-                       <ImageIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                       <input name="image" defaultValue={editingProduct?.image} placeholder="https://..." className="w-full pl-12 pr-6 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none" />
-                    </div>
-                 </div>
-
-                 <div className="flex flex-wrap gap-6 p-6 bg-slate-50 dark:bg-slate-950 rounded-3xl">
+                 <div className="flex flex-wrap gap-6 p-8 bg-slate-50 dark:bg-slate-950 rounded-[2rem] border border-slate-100 dark:border-slate-800">
                     <label className="flex items-center gap-3 cursor-pointer group">
                        <input type="checkbox" name="isNew" defaultChecked={editingProduct?.isNew} className="hidden peer" />
-                       <div className="w-5 h-5 rounded border-2 border-slate-300 peer-checked:bg-emerald-600 peer-checked:border-emerald-600 flex items-center justify-center transition-all"><CheckCircle className="w-3 h-3 text-white" /></div>
-                       <span className="text-[10px] font-black uppercase text-slate-500 group-hover:text-emerald-700">New Delicacy</span>
+                       <div className="w-6 h-6 rounded-xl border-2 border-slate-300 peer-checked:bg-emerald-600 peer-checked:border-emerald-600 flex items-center justify-center transition-all shadow-sm"><CheckCircle className="w-3.5 h-3.5 text-white" /></div>
+                       <span className="text-[10px] font-black uppercase text-slate-500 group-hover:text-emerald-700 transition-colors">New Delicacy</span>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer group">
                        <input type="checkbox" name="isMondaySpecial" defaultChecked={editingProduct?.isMondaySpecial} className="hidden peer" />
-                       <div className="w-5 h-5 rounded border-2 border-slate-300 peer-checked:bg-emerald-600 peer-checked:border-emerald-600 flex items-center justify-center transition-all"><CheckCircle className="w-3 h-3 text-white" /></div>
-                       <span className="text-[10px] font-black uppercase text-slate-500 group-hover:text-emerald-700">Monday Special</span>
+                       <div className="w-6 h-6 rounded-xl border-2 border-slate-300 peer-checked:bg-emerald-600 peer-checked:border-emerald-600 flex items-center justify-center transition-all shadow-sm"><CheckCircle className="w-3.5 h-3.5 text-white" /></div>
+                       <span className="text-[10px] font-black uppercase text-slate-500 group-hover:text-emerald-700 transition-colors">Monday Special</span>
                     </label>
                     <label className="flex items-center gap-3 cursor-pointer group">
                        <input type="checkbox" name="isRamadanSpecial" defaultChecked={editingProduct?.isRamadanSpecial} className="hidden peer" />
-                       <div className="w-5 h-5 rounded border-2 border-slate-300 peer-checked:bg-amber-600 peer-checked:border-amber-600 flex items-center justify-center transition-all"><MoonStar className="w-3 h-3 text-white" /></div>
-                       <span className="text-[10px] font-black uppercase text-slate-500 group-hover:text-amber-600">Ramadan Special</span>
+                       <div className="w-6 h-6 rounded-xl border-2 border-slate-300 peer-checked:bg-amber-600 peer-checked:border-amber-600 flex items-center justify-center transition-all shadow-sm"><MoonStar className="w-3.5 h-3.5 text-white" /></div>
+                       <span className="text-[10px] font-black uppercase text-slate-500 group-hover:text-amber-600 transition-colors">Ramadan Special</span>
                     </label>
                  </div>
 
                  <button 
                    type="submit" 
                    disabled={isProcessingApproval}
-                   className="w-full py-6 bg-emerald-800 text-white rounded-3xl font-black text-xs tracking-[0.3em] uppercase transition-all shadow-xl shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-2"
+                   className="w-full py-6 bg-emerald-800 text-white rounded-[2rem] font-black text-xs tracking-[0.3em] uppercase transition-all shadow-2xl shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
                  >
-                   {isProcessingApproval ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                   {isProcessingApproval ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                    {editingProduct ? 'Commit Changes' : 'Initialize Delicacy'}
                  </button>
               </form>
